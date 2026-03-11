@@ -1,9 +1,9 @@
 import * as THREE from 'https://unpkg.com/three@0.161.0/build/three.module.js';
 
 const scene = new THREE.Scene();
-scene.fog = new THREE.FogExp2(0x08101f, 0.018);
+scene.fog = new THREE.FogExp2(0x08101f, 0.012);
 
-const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 2000);
+const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 9000);
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -32,30 +32,42 @@ let dimension = 1;
 let stageIndex = 0;
 let currentMessage = 'Eat to grow forever.';
 const stageNames = ['World', 'Planetary', 'Stellar', 'Cosmic', 'Multiverse'];
-const unlocks = [1, 2.6, 5.5, 10, 18, 30, 44, 60];
+const unlocks = [1.8, 4.5, 9, 16, 26, 42, 68, 98, 132];
 const unlockText = [
   'You can now swallow street objects.',
   'You can now swallow vehicles.',
   'You can now swallow houses.',
   'You can now swallow towers.',
-  'You can now swallow cities.',
+  'You can now swallow city blocks.',
   'You can now swallow planets.',
   'You can now swallow stars.',
+  'You can now swallow galaxies.',
   'Reality is starting to bend.'
 ];
 let unlockIndex = 0;
 
 const world = {
-  radius: 50,
+  radius: 80,
   targets: [],
   particles: []
 };
 
-const floorGeo = new THREE.CircleGeometry(80, 80);
+const floorGeo = new THREE.CircleGeometry(160, 100);
 const floorMat = new THREE.MeshStandardMaterial({ color: 0x18243d, roughness: 0.96, metalness: 0.05 });
 const floor = new THREE.Mesh(floorGeo, floorMat);
 floor.rotation.x = -Math.PI / 2;
 scene.add(floor);
+
+const stars = new THREE.Group();
+scene.add(stars);
+const starGeo = new THREE.SphereGeometry(0.18, 6, 6);
+const starMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+for (let i = 0; i < 200; i++) {
+  const s = new THREE.Mesh(starGeo, starMat.clone());
+  s.position.set((Math.random() - 0.5) * 2000, 120 + Math.random() * 500, (Math.random() - 0.5) * 2000);
+  s.scale.setScalar(Math.random() * 3 + 0.5);
+  stars.add(s);
+}
 
 const holeGroup = new THREE.Group();
 scene.add(holeGroup);
@@ -82,7 +94,6 @@ const player = {
 
 function randomRange(min, max) { return min + Math.random() * (max - min); }
 function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
-function randChoice(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 
 function stagePalette(idx) {
   return [
@@ -94,57 +105,81 @@ function stagePalette(idx) {
   ][idx % 5];
 }
 
-function makeTarget(scaleTier = 0) {
-  const size = Math.pow(randomRange(0.35, 1.25) + scaleTier * 0.16, 1.45);
+function getTierProgress() {
+  return Math.max(0, player.size - 1);
+}
+
+function getTargetVisualScale(baseSize) {
+  const scale = baseSize / Math.pow(player.size, 0.72);
+  return Math.max(0.04, scale);
+}
+
+function respawnTarget(target, scaleTier = 0) {
+  const baseSize = Math.pow(randomRange(0.42, 1.3) + scaleTier * 0.11, 1.5);
   const geoType = Math.floor(Math.random() * 3);
   let geo;
   if (geoType === 0) geo = new THREE.BoxGeometry(1, 1, 1);
   else if (geoType === 1) geo = new THREE.SphereGeometry(0.55, 16, 16);
   else geo = new THREE.CylinderGeometry(0.45, 0.65, 1.1, 14);
 
-  const hue = (0.55 + stageIndex * 0.12 + Math.random() * 0.1) % 1;
-  const color = new THREE.Color().setHSL(hue, 0.55, 0.55 + Math.random() * 0.1);
-  const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.72, metalness: 0.15 });
-  const mesh = new THREE.Mesh(geo, mat);
-  const angle = Math.random() * Math.PI * 2;
-  const dist = randomRange(8, world.radius);
-  mesh.position.set(Math.cos(angle) * dist, size * 0.5, Math.sin(angle) * dist);
-  mesh.rotation.set(Math.random() * 2, Math.random() * 2, Math.random() * 2);
-  mesh.scale.setScalar(size);
-  scene.add(mesh);
+  if (!target.mesh) {
+    const hue = (0.55 + stageIndex * 0.12 + Math.random() * 0.1) % 1;
+    const color = new THREE.Color().setHSL(hue, 0.55, 0.55 + Math.random() * 0.1);
+    const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.72, metalness: 0.15 });
+    target.mesh = new THREE.Mesh(geo, mat);
+    scene.add(target.mesh);
+  } else {
+    target.mesh.geometry.dispose();
+    target.mesh.geometry = geo;
+  }
 
-  const target = {
-    mesh,
-    size,
-    mass: Math.max(1, Math.round(size * size * 4)),
-    beingEaten: false,
-    wobble: Math.random() * Math.PI * 2
-  };
+  const angle = Math.random() * Math.PI * 2;
+  const dist = randomRange(player.size * 10 + 10, world.radius + player.size * 9);
+  target.mesh.position.set(Math.cos(angle) * dist, 0, Math.sin(angle) * dist);
+  target.mesh.rotation.set(Math.random() * 2, Math.random() * 2, Math.random() * 2);
+  target.baseSize = baseSize;
+  target.size = getTargetVisualScale(baseSize);
+  target.mass = Math.max(1, Math.round(Math.pow(baseSize, 2.45) * 1.15));
+  target.beingEaten = false;
+  target.wobble = Math.random() * Math.PI * 2;
+  target.mesh.scale.setScalar(target.size);
+  target.mesh.position.y = target.size * 0.5;
+  target.originalColor = target.mesh.material.color.clone();
+  return target;
+}
+
+function makeTarget(scaleTier = 0) {
+  const target = { mesh: null, baseSize: 1, size: 1, mass: 1, beingEaten: false, wobble: 0, originalColor: null };
+  respawnTarget(target, scaleTier);
   world.targets.push(target);
 }
 
-function populate(count = 120) {
+function populate(count = 180) {
   while (world.targets.length < count) {
-    makeTarget(stageIndex + player.size * 0.08);
+    makeTarget(stageIndex + getTierProgress() * 0.05);
   }
 }
 
-function makeParticle(pos, color) {
+function makeParticle(pos, color, size = 0.16) {
   const mesh = new THREE.Mesh(
-    new THREE.SphereGeometry(0.16, 8, 8),
+    new THREE.SphereGeometry(size, 8, 8),
     new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.95 })
   );
   mesh.position.copy(pos);
   scene.add(mesh);
-  world.particles.push({ mesh, life: 0.45, vel: new THREE.Vector3(randomRange(-2,2), randomRange(0.6,2.8), randomRange(-2,2)) });
+  world.particles.push({ mesh, life: 0.55, vel: new THREE.Vector3(randomRange(-2,2), randomRange(0.6,2.8), randomRange(-2,2)) });
 }
 
 function eatTarget(target) {
   totalMass += target.mass;
-  player.size += Math.max(0.07, target.size * 0.05);
-  world.targets.splice(world.targets.indexOf(target), 1);
-  for (let i = 0; i < 6; i++) makeParticle(target.mesh.position, target.mesh.material.color);
+  player.size += Math.max(0.01, Math.pow(target.baseSize, 0.82) * 0.0045);
+
+  const idx = world.targets.indexOf(target);
+  if (idx >= 0) world.targets.splice(idx, 1);
+  for (let i = 0; i < 7; i++) makeParticle(target.mesh.position, target.mesh.material.color, 0.08 + Math.min(0.4, target.size * 0.08));
   scene.remove(target.mesh);
+  target.mesh.geometry.dispose();
+  target.mesh.material.dispose();
 
   while (unlockIndex < unlocks.length && player.size >= unlocks[unlockIndex]) {
     currentMessage = unlockText[unlockIndex];
@@ -152,11 +187,11 @@ function eatTarget(target) {
     unlockIndex++;
   }
 
-  if (player.size > 11 && stageIndex < 1) setStage(1, 'You left the ground behind.');
-  if (player.size > 22 && stageIndex < 2) setStage(2, 'Now you are swallowing worlds and stars.');
-  if (player.size > 38 && stageIndex < 3) setStage(3, 'Reality is tearing open.');
-  if (player.size > 56 && stageIndex < 4) setStage(4, 'The multiverse is edible now.');
-  if (player.size > 78) collapseReality();
+  if (player.size > 18 && stageIndex < 1) setStage(1, 'You left the ground behind.');
+  if (player.size > 42 && stageIndex < 2) setStage(2, 'Now you are swallowing worlds and stars.');
+  if (player.size > 82 && stageIndex < 3) setStage(3, 'Reality is tearing open.');
+  if (player.size > 126 && stageIndex < 4) setStage(4, 'The multiverse is edible now.');
+  if (player.size > 180) collapseReality();
 }
 
 function setStage(idx, message) {
@@ -189,11 +224,16 @@ function resetDimension() {
   player.vel.set(0, 0, 0);
   unlockIndex = 0;
   stageIndex = 0;
-  world.targets.forEach(t => scene.remove(t.mesh));
+  world.targets.forEach(t => {
+    if (t.mesh) {
+      scene.remove(t.mesh);
+      t.mesh.geometry.dispose();
+      t.mesh.material.dispose();
+    }
+  });
   world.targets = [];
-  setStage(dimension % 5, 'A new alternate dimension begins.');
   setStage(0, 'A new alternate dimension begins.');
-  populate(150);
+  populate(180);
   collapsing = false;
 }
 
@@ -271,9 +311,9 @@ startBtn.addEventListener('click', () => {
   intro.style.display = 'none';
 });
 
-camera.position.set(0, 16, 18);
+camera.position.set(0, 18, 22);
 camera.lookAt(0, 0, 0);
-populate(150);
+populate(180);
 
 const clock = new THREE.Clock();
 function animate() {
@@ -283,14 +323,14 @@ function animate() {
   if (running) {
     if (collapsing) {
       collapseT += dt;
-      const pull = Math.min(1, collapseT / 2.6);
+      const pull = Math.min(1, collapseT / 2.9);
       world.targets.forEach(t => {
-        t.mesh.position.lerp(player.pos, pull * 0.06);
+        t.mesh.position.lerp(player.pos, pull * 0.07);
         t.mesh.scale.multiplyScalar(1 - dt * 0.55);
       });
-      ring.scale.setScalar(1 + pull * 2.4);
-      camera.position.lerp(new THREE.Vector3(player.pos.x, 10 + pull * 24, player.pos.z + 12 + pull * 16), 0.03);
-      if (collapseT > 2.7) {
+      ring.scale.setScalar(1 + pull * 2.8);
+      camera.position.lerp(new THREE.Vector3(player.pos.x, 14 + pull * 90, player.pos.z + 18 + pull * 95), 0.03);
+      if (collapseT > 3) {
         ring.scale.setScalar(1);
         resetDimension();
       }
@@ -299,30 +339,40 @@ function animate() {
       const desired = input.lengthSq() > 0 ? input.normalize().multiplyScalar(player.speed / Math.pow(player.size, 0.14)) : new THREE.Vector3();
       player.vel.lerp(desired, 0.12);
       player.pos.addScaledVector(player.vel, dt);
-      const boundary = world.radius + player.size * 1.6;
+      const boundary = world.radius + player.size * 12;
       player.pos.x = clamp(player.pos.x, -boundary, boundary);
       player.pos.z = clamp(player.pos.z, -boundary, boundary);
 
       world.targets.forEach((t) => {
-        t.wobble += dt * (0.6 + 0.2 / Math.max(t.size, 0.2));
+        t.wobble += dt * (0.6 + 0.2 / Math.max(t.baseSize, 0.2));
         if (!t.beingEaten) t.mesh.rotation.y += dt * 0.4;
-        t.mesh.position.y = t.size * 0.5 + Math.sin(t.wobble) * 0.05;
+
+        const idealScale = getTargetVisualScale(t.baseSize);
+        t.size += (idealScale - t.size) * Math.min(1, dt * 4.6);
+        t.mesh.scale.setScalar(t.size);
+        t.mesh.position.y = t.size * 0.5 + Math.sin(t.wobble) * Math.min(0.04, t.size * 0.06);
+
         const d = t.mesh.position.distanceTo(player.pos);
         const eatRadius = player.size * 1.9;
-        const canEat = t.size < player.size * 0.95;
-        if (canEat && d < eatRadius * 2.15) {
+        const canEat = t.baseSize < player.size * 0.92;
+
+        if (canEat && d < eatRadius * 2.5) {
           t.beingEaten = true;
-          const suction = clamp((eatRadius * 2.15 - d) / (eatRadius * 2.15), 0, 1);
-          t.mesh.position.lerp(player.pos, suction * dt * 2.8);
-          t.mesh.scale.multiplyScalar(1 - dt * suction * 1.6);
+          const suction = clamp((eatRadius * 2.5 - d) / (eatRadius * 2.5), 0, 1);
+          t.mesh.position.lerp(player.pos, suction * dt * (2.4 + player.size * 0.015));
+          t.mesh.scale.multiplyScalar(1 - dt * suction * 1.9);
+          t.mesh.material.emissive.copy(ring.material.color).multiplyScalar(suction * 0.35);
+        } else {
+          t.beingEaten = false;
+          t.mesh.material.emissive.setRGB(0, 0, 0);
         }
-        if (canEat && d < eatRadius * 0.72) {
+        if (canEat && d < eatRadius * 0.7) {
           eatTarget(t);
         }
       });
 
-      world.targets = world.targets.filter(t => t.mesh.parent);
-      populate(150 + Math.floor(player.size * 2.4));
+      world.targets = world.targets.filter(t => t.mesh && t.mesh.parent);
+      populate(180 + Math.floor(Math.pow(player.size, 0.85) * 12));
     }
 
     holeGroup.position.copy(player.pos);
@@ -336,15 +386,24 @@ function animate() {
       p.mesh.scale.multiplyScalar(0.99);
       if (p.life <= 0) {
         scene.remove(p.mesh);
+        p.mesh.geometry.dispose();
+        p.mesh.material.dispose();
         world.particles.splice(idx, 1);
       }
     });
 
-    const camDist = 14 + player.size * 0.95;
-    const camHeight = 12 + player.size * 0.54;
+    const camDist = 18 + Math.pow(player.size, 1.08) * 2.6;
+    const camHeight = 13 + Math.pow(player.size, 1.1) * 1.55;
+    const lookAhead = Math.min(12, player.size * 0.14);
     const camTarget = new THREE.Vector3(player.pos.x, camHeight, player.pos.z + camDist);
-    camera.position.lerp(camTarget, 0.08);
-    camera.lookAt(player.pos.x, 0, player.pos.z);
+    camera.position.lerp(camTarget, 0.07);
+    camera.lookAt(player.pos.x, 0, player.pos.z - lookAhead);
+    camera.fov = clamp(60 + Math.pow(player.size, 0.52) * 1.2, 60, 95);
+    camera.updateProjectionMatrix();
+
+    floor.scale.setScalar(Math.max(1, 1 + player.size * 0.1));
+    stars.visible = player.size > 20;
+    stars.position.set(player.pos.x * 0.1, 0, player.pos.z * 0.1);
 
     sizeEl.textContent = player.size.toFixed(2);
     scoreEl.textContent = Math.floor(totalMass).toLocaleString();
