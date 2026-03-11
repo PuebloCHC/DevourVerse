@@ -1,13 +1,19 @@
-Devourverse 3D
+DevourVerse 3D updated build
 
-Updated version:
-- progression slowed down heavily
-- starts at microscopic scale with dust / germs / grains
-- camera now zooms out continuously as the player grows
-- early objects become dust-specks compared to late-game scale
-- larger objects only start appearing as the player gets big enough to make them visible and relevant
-- dynamic bubble joystick remains enabled
-- black hole dimension reset still keeps total mass
+What changed in this version:
+- The player is now a black rolling sphere instead of a flat disk.
+- The sphere has a green glow shell and a green outline ring.
+- The world has more visual detail with terrain grid, rocks, stars, and more varied object shapes.
+- Objects are more 3D and more readable at each progression stage.
+- The suction effect is stronger and more satisfying.
+- Camera zooms out as the sphere grows.
 
-Run:
-Open index.html in a browser or upload the folder to GitHub Pages.
+How to run:
+1. Upload all files to the same folder in your repo.
+2. Open index.html through a local server or GitHub Pages.
+3. On phone, touch and drag to move.
+4. On desktop, use touch/mouse drag or WASD/arrow keys.
+
+Notes:
+- Uses Three.js from CDN.
+- If you want, the next update can add better world biomes, actual planet skyboxes, particles, sound, and black-hole collapse effects.

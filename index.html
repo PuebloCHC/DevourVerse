@@ -3,29 +3,27 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Devourverse 3D</title>
+  <title>DevourVerse 3D</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <div id="hud">
-    <div class="panel">
-      <div><span class="label">Stage</span><span id="stage">World</span></div>
-      <div><span class="label">Dimension</span><span id="dimension">1</span></div>
-      <div><span class="label">Size</span><span id="size">1.00</span></div>
-      <div><span class="label">Total Mass</span><span id="score">0</span></div>
+  <div id="gameWrap">
+    <canvas id="gameCanvas"></canvas>
+
+    <div id="hud">
+      <div class="hud-card">
+        <div>Size: <span id="sizeValue">1.00</span></div>
+        <div>Total Score: <span id="scoreValue">0</span></div>
+        <div>Dimension: <span id="dimensionValue">1</span></div>
+        <div>Stage: <span id="stageValue">Micro</span></div>
+      </div>
+      <div id="milestone">Eat dust and germs to begin.</div>
     </div>
-    <div id="milestone">Eat to grow forever.</div>
-  </div>
 
-  <div id="joystick" class="hidden">
-    <div id="joystickBase"></div>
-    <div id="joystickKnob"></div>
-  </div>
-
-  <div id="intro">
-    <h1>Devourverse 3D</h1>
-    <p>Drag anywhere on the left or lower screen to summon the bubble joystick. Swallow smaller objects, grow absurdly large, then collapse reality and restart in a new dimension with the same total score.</p>
-    <button id="startBtn">Start</button>
+    <div id="joystick">
+      <div id="joystickBase"></div>
+      <div id="joystickKnob"></div>
+    </div>
   </div>
 
   <script type="module" src="script.js"></script>

@@ -1,512 +1,585 @@
-import * as THREE from 'https://unpkg.com/three@0.161.0/build/three.module.js';
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
+
+const canvas = document.getElementById('gameCanvas');
+const sizeEl = document.getElementById('sizeValue');
+const scoreEl = document.getElementById('scoreValue');
+const dimensionEl = document.getElementById('dimensionValue');
+const stageEl = document.getElementById('stageValue');
+const milestoneEl = document.getElementById('milestone');
+const joystickEl = document.getElementById('joystick');
+const joystickBaseEl = document.getElementById('joystickBase');
+const joystickKnobEl = document.getElementById('joystickKnob');
+
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
 const scene = new THREE.Scene();
-scene.fog = new THREE.FogExp2(0x050813, 0.01);
+scene.background = new THREE.Color(0x02060d);
+scene.fog = new THREE.FogExp2(0x02060d, 0.018);
 
-const camera = new THREE.PerspectiveCamera(62, window.innerWidth / window.innerHeight, 0.1, 30000);
-const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-document.body.appendChild(renderer.domElement);
+const camera = new THREE.PerspectiveCamera(58, window.innerWidth / window.innerHeight, 0.1, 5000);
+camera.position.set(0, 16, 18);
 
-const hemi = new THREE.HemisphereLight(0xc0d7ff, 0x121724, 1.5);
-scene.add(hemi);
-const dir = new THREE.DirectionalLight(0xffffff, 1.1);
-dir.position.set(10, 16, 8);
-scene.add(dir);
+const ambient = new THREE.HemisphereLight(0xb6ffe2, 0x0d1620, 1.25);
+scene.add(ambient);
 
-const stageEl = document.getElementById('stage');
-const dimensionEl = document.getElementById('dimension');
-const sizeEl = document.getElementById('size');
-const scoreEl = document.getElementById('score');
-const milestoneEl = document.getElementById('milestone');
-const intro = document.getElementById('intro');
-const startBtn = document.getElementById('startBtn');
-const joystick = document.getElementById('joystick');
-const joystickBase = document.getElementById('joystickBase');
-const joystickKnob = document.getElementById('joystickKnob');
+const sun = new THREE.DirectionalLight(0xe9fff1, 1.2);
+sun.position.set(25, 32, 10);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.left = -80;
+sun.shadow.camera.right = 80;
+sun.shadow.camera.top = 80;
+sun.shadow.camera.bottom = -80;
+scene.add(sun);
 
-const STAGES = [
-  { threshold: 0.4, name: 'Microscopic', bg: 0x060914, floor: 0x11192a, ring: 0x6ea0ff },
-  { threshold: 1.4, name: 'Ground', bg: 0x08101f, floor: 0x18243d, ring: 0x62b1ff },
-  { threshold: 8, name: 'City', bg: 0x0b1223, floor: 0x252244, ring: 0x8d78ff },
-  { threshold: 40, name: 'Planetary', bg: 0x100f1c, floor: 0x312138, ring: 0xff6cb2 },
-  { threshold: 120, name: 'Stellar', bg: 0x0d1320, floor: 0x16364d, ring: 0x67e6ff },
-  { threshold: 300, name: 'Cosmic', bg: 0x120f0d, floor: 0x3d2e1a, ring: 0xffcc66 },
-  { threshold: 650, name: 'Multiverse', bg: 0x120a16, floor: 0x382043, ring: 0xb98cff }
-];
+const glowLight = new THREE.PointLight(0x3eff85, 2.2, 45, 2);
+glowLight.position.set(0, 2, 0);
+scene.add(glowLight);
 
-const TIERS = [
-  { name: 'dust', min: 0.02, max: 0.05, mass: 1, color: 0xc7d5ff, shape: 'sphere' },
-  { name: 'germs', min: 0.045, max: 0.08, mass: 1.4, color: 0x91ffc3, shape: 'blob' },
-  { name: 'grains', min: 0.08, max: 0.14, mass: 2, color: 0xffed9b, shape: 'box' },
-  { name: 'pebbles', min: 0.14, max: 0.28, mass: 3.5, color: 0xc2b4ff, shape: 'sphere' },
-  { name: 'fruit', min: 0.28, max: 0.55, mass: 6, color: 0xff9f94, shape: 'sphere' },
-  { name: 'furniture', min: 0.55, max: 1.1, mass: 10, color: 0xa7d2ff, shape: 'box' },
-  { name: 'cars', min: 1.1, max: 2.2, mass: 18, color: 0x79b4ff, shape: 'box' },
-  { name: 'houses', min: 2.2, max: 4.5, mass: 30, color: 0xffb37d, shape: 'tower' },
-  { name: 'buildings', min: 4.5, max: 9, mass: 55, color: 0xe4c5ff, shape: 'tower' },
-  { name: 'city blocks', min: 9, max: 18, mass: 95, color: 0x98ffeb, shape: 'slab' },
-  { name: 'continents', min: 18, max: 36, mass: 165, color: 0xa9e693, shape: 'sphere' },
-  { name: 'planets', min: 36, max: 72, mass: 280, color: 0x84b1ff, shape: 'planet' },
-  { name: 'stars', min: 72, max: 140, mass: 480, color: 0xffd27b, shape: 'star' },
-  { name: 'galaxies', min: 140, max: 280, mass: 820, color: 0xe4a6ff, shape: 'galaxy' },
-  { name: 'universes', min: 280, max: 560, mass: 1380, color: 0x7df6ff, shape: 'universe' },
-  { name: 'other universes', min: 560, max: 980, mass: 2200, color: 0xff84dd, shape: 'universe' }
-];
+const groundMat = new THREE.MeshStandardMaterial({
+  color: 0x152330,
+  roughness: 0.96,
+  metalness: 0.03,
+  emissive: 0x081019,
+  emissiveIntensity: 0.12,
+});
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(5000, 5000, 100, 100), groundMat);
+ground.rotation.x = -Math.PI / 2;
+ground.receiveShadow = true;
+scene.add(ground);
 
-let running = false;
-let totalMass = 0;
-let dimension = 1;
-let stageIndex = 0;
-let lastUnlockTier = -1;
-let collapseT = 0;
-let collapsing = false;
+const grid = new THREE.GridHelper(5000, 280, 0x173327, 0x0b1b13);
+grid.material.transparent = true;
+grid.material.opacity = 0.24;
+scene.add(grid);
 
-const world = {
-  radius: 240,
-  targets: [],
-  particles: []
-};
-
-const floorGeo = new THREE.CircleGeometry(260, 120);
-const floorMat = new THREE.MeshStandardMaterial({ color: 0x18243d, roughness: 0.96, metalness: 0.04 });
-const floor = new THREE.Mesh(floorGeo, floorMat);
-floor.rotation.x = -Math.PI / 2;
-scene.add(floor);
-
-const stars = new THREE.Group();
-scene.add(stars);
-for (let i = 0; i < 340; i++) {
-  const m = new THREE.Mesh(
-    new THREE.SphereGeometry(0.18, 6, 6),
-    new THREE.MeshBasicMaterial({ color: 0xffffff })
-  );
-  m.position.set((Math.random() - 0.5) * 5000, 120 + Math.random() * 1000, (Math.random() - 0.5) * 5000);
-  m.scale.setScalar(Math.random() * 2.8 + 0.5);
-  stars.add(m);
+const starGeo = new THREE.BufferGeometry();
+const starCount = 1500;
+const starPos = new Float32Array(starCount * 3);
+for (let i = 0; i < starCount; i++) {
+  const r = 900 + Math.random() * 1600;
+  const a = Math.random() * Math.PI * 2;
+  const y = 120 + Math.random() * 900;
+  starPos[i * 3] = Math.cos(a) * r;
+  starPos[i * 3 + 1] = y;
+  starPos[i * 3 + 2] = Math.sin(a) * r;
 }
+starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
+const starMat = new THREE.PointsMaterial({ color: 0xdffff0, size: 2.2, sizeAttenuation: true, transparent: true, opacity: 0.9 });
+const stars = new THREE.Points(starGeo, starMat);
+scene.add(stars);
 
-const holeGroup = new THREE.Group();
-scene.add(holeGroup);
-const holeDisc = new THREE.Mesh(
-  new THREE.CylinderGeometry(1.5, 1.85, 0.22, 40),
-  new THREE.MeshStandardMaterial({ color: 0x010207, roughness: 0.28, metalness: 0.78 })
-);
-holeDisc.position.y = 0.12;
-holeGroup.add(holeDisc);
-const ring = new THREE.Mesh(
-  new THREE.TorusGeometry(2.0, 0.18, 18, 48),
-  new THREE.MeshStandardMaterial({ color: 0x62b1ff, emissive: 0x2f5aa0, emissiveIntensity: 1.25, roughness: 0.24 })
-);
-ring.rotation.x = Math.PI / 2;
-ring.position.y = 0.14;
-holeGroup.add(ring);
+const playerGroup = new THREE.Group();
+scene.add(playerGroup);
 
+const playerRadiusBase = 1.15;
+const sphereGeo = new THREE.SphereGeometry(1, 48, 48);
+const sphereMat = new THREE.MeshStandardMaterial({
+  color: 0x030405,
+  roughness: 0.32,
+  metalness: 0.22,
+  emissive: 0x07120a,
+  emissiveIntensity: 0.65,
+});
+const playerSphere = new THREE.Mesh(sphereGeo, sphereMat);
+playerSphere.castShadow = true;
+playerSphere.receiveShadow = true;
+playerGroup.add(playerSphere);
+
+const shellGeo = new THREE.SphereGeometry(1.12, 48, 48);
+const shellMat = new THREE.MeshBasicMaterial({
+  color: 0x56ff9b,
+  transparent: true,
+  opacity: 0.17,
+  blending: THREE.AdditiveBlending,
+  side: THREE.BackSide,
+});
+const playerGlow = new THREE.Mesh(shellGeo, shellMat);
+playerGroup.add(playerGlow);
+
+const ringGeo = new THREE.RingGeometry(1.22, 1.42, 64);
+const ringMat = new THREE.MeshBasicMaterial({
+  color: 0x59ffa2,
+  transparent: true,
+  opacity: 0.62,
+  side: THREE.DoubleSide,
+  blending: THREE.AdditiveBlending,
+});
+const outlineRing = new THREE.Mesh(ringGeo, ringMat);
+outlineRing.rotation.x = -Math.PI / 2;
+outlineRing.position.y = -0.98;
+playerGroup.add(outlineRing);
+
+const trailGeo = new THREE.RingGeometry(0.6, 1.15, 40);
+const trailMat = new THREE.MeshBasicMaterial({
+  color: 0x47ff87,
+  transparent: true,
+  opacity: 0.25,
+  side: THREE.DoubleSide,
+  blending: THREE.AdditiveBlending,
+});
+const trail = new THREE.Mesh(trailGeo, trailMat);
+trail.rotation.x = -Math.PI / 2;
+trail.position.y = -1.05;
+playerGroup.add(trail);
+
+let dimension = 1;
+let totalScore = 0;
+let playerMass = 0;
+let playerScale = 1;
+let targetCameraDistance = 22;
 const player = {
   pos: new THREE.Vector3(0, 0, 0),
-  vel: new THREE.Vector3(0, 0, 0),
-  size: 0.24,
-  speed: 7.2
+  vel: new THREE.Vector3(),
+  dir: new THREE.Vector2(0, 0),
+  speed: 8,
+  rollAngle: 0,
 };
 
-const joy = {
-  active: false,
-  id: null,
-  origin: { x: 0, y: 0 },
-  move: { x: 0, y: 0 },
-  max: 56
-};
+const stages = [
+  { name: 'Micro', min: 1, max: 4, items: [
+    { name: 'Germ', size: 0.14, color: 0x79f2d0, value: 1, shape: 'spike' },
+    { name: 'Dust', size: 0.1, color: 0xbaa983, value: 1, shape: 'rock' },
+    { name: 'Mote', size: 0.11, color: 0xe8efe3, value: 1, shape: 'crystal' },
+  ]},
+  { name: 'Tiny', min: 3, max: 9, items: [
+    { name: 'Seed', size: 0.24, color: 0x9d6f3d, value: 3, shape: 'capsule' },
+    { name: 'Pebble', size: 0.28, color: 0x757b84, value: 3, shape: 'rock' },
+    { name: 'Berry', size: 0.22, color: 0xff4f72, value: 4, shape: 'sphere' },
+  ]},
+  { name: 'Street', min: 8, max: 28, items: [
+    { name: 'Cone', size: 0.65, color: 0xff9747, value: 8, shape: 'cone' },
+    { name: 'Crate', size: 0.92, color: 0x9a6a43, value: 10, shape: 'box' },
+    { name: 'Mailbox', size: 1.15, color: 0x597ce8, value: 12, shape: 'capsuleTall' },
+  ]},
+  { name: 'City', min: 24, max: 80, items: [
+    { name: 'Car', size: 1.8, color: 0xe8a13c, value: 28, shape: 'car' },
+    { name: 'Truck', size: 2.25, color: 0x72bde8, value: 34, shape: 'truck' },
+    { name: 'House', size: 3.0, color: 0xd6b98a, value: 40, shape: 'house' },
+  ]},
+  { name: 'Massive', min: 70, max: 200, items: [
+    { name: 'Tower', size: 5.2, color: 0x8da0c9, value: 80, shape: 'tower' },
+    { name: 'Block', size: 6.0, color: 0x8894a6, value: 95, shape: 'building' },
+    { name: 'Stadium', size: 7.2, color: 0x7e9377, value: 110, shape: 'stadium' },
+  ]},
+  { name: 'Cosmic', min: 180, max: 99999, items: [
+    { name: 'Asteroid', size: 10.5, color: 0x786d6a, value: 220, shape: 'asteroid' },
+    { name: 'Moon', size: 13.5, color: 0xbfc7cf, value: 320, shape: 'moon' },
+    { name: 'Planet', size: 18, color: 0x4e7eff, value: 550, shape: 'planet' },
+  ]},
+];
 
-function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
-function lerp(a, b, t) { return a + (b - a) * t; }
-function randomRange(a, b) { return a + Math.random() * (b - a); }
-function weightedPick(items, weights) {
-  const total = weights.reduce((a, b) => a + b, 0);
-  let r = Math.random() * total;
-  for (let i = 0; i < items.length; i++) {
-    r -= weights[i];
-    if (r <= 0) return items[i];
-  }
-  return items[items.length - 1];
+const items = [];
+const itemGroup = new THREE.Group();
+scene.add(itemGroup);
+
+const tempVec3 = new THREE.Vector3();
+const milestoneThresholds = [
+  { size: 2.5, text: 'You can now pull in seeds and pebbles.' },
+  { size: 6, text: 'You can now swallow street props.' },
+  { size: 18, text: 'You can now consume cars and houses.' },
+  { size: 42, text: 'You can now devour towers and districts.' },
+  { size: 120, text: 'You are entering the colossal scale.' },
+  { size: 220, text: 'Planets are finally within reach.' },
+];
+let nextMilestoneIndex = 0;
+
+function setMilestone(text) {
+  milestoneEl.textContent = text;
 }
 
-function currentStageIndex() {
-  let idx = 0;
-  for (let i = 0; i < STAGES.length; i++) {
-    if (player.size >= STAGES[i].threshold) idx = i;
-  }
-  return idx;
+function getStageName() {
+  const s = stages.find(st => playerScale >= st.min && playerScale < st.max);
+  return s ? s.name : 'Cosmic';
 }
 
-function applyStage(force = false) {
-  const idx = currentStageIndex();
-  if (!force && idx === stageIndex) return;
-  stageIndex = idx;
-  const stage = STAGES[idx];
-  scene.background = new THREE.Color(stage.bg);
-  scene.fog.color = new THREE.Color(stage.bg);
-  floor.material.color.setHex(stage.floor);
-  ring.material.color.setHex(stage.ring);
-  ring.material.emissive.setHex(stage.ring);
-  stageEl.textContent = stage.name;
-}
-
-function tierForScale(scale) {
-  return TIERS.findIndex(t => scale >= t.min && scale < t.max);
-}
-
-function maybeAnnounceUnlock() {
-  const edibleMax = player.size * 0.92;
-  let idx = -1;
-  for (let i = 0; i < TIERS.length; i++) if (edibleMax >= TIERS[i].min) idx = i;
-  if (idx > lastUnlockTier) {
-    lastUnlockTier = idx;
-    const label = idx >= 0 ? TIERS[idx].name : 'dust';
-    milestoneEl.textContent = `You can now swallow ${label}.`;
-  }
-}
-
-function visualScaleFor(baseSize) {
-  const shrink = Math.pow(Math.max(player.size, 0.24), 0.97);
-  return clamp((baseSize / shrink) * 5.4, 0.02, 14);
-}
-
-function geometryForTier(tier) {
-  switch (tier.shape) {
-    case 'blob': return new THREE.IcosahedronGeometry(0.55, 0);
-    case 'box': return new THREE.BoxGeometry(1, 1, 1);
-    case 'tower': return new THREE.BoxGeometry(0.85, 1.7, 0.85);
-    case 'slab': return new THREE.BoxGeometry(1.8, 0.65, 1.8);
-    case 'planet': return new THREE.SphereGeometry(0.7, 18, 18);
-    case 'star': return new THREE.IcosahedronGeometry(0.75, 0);
-    case 'galaxy': return new THREE.TorusGeometry(0.7, 0.24, 10, 18);
-    case 'universe': return new THREE.OctahedronGeometry(0.8, 0);
-    default: return new THREE.SphereGeometry(0.55, 14, 14);
-  }
-}
-
-function materialForTier(tier) {
+function makeMaterial(color) {
   return new THREE.MeshStandardMaterial({
-    color: tier.color,
-    emissive: 0x000000,
-    roughness: tier.shape === 'planet' ? 0.55 : 0.72,
-    metalness: tier.shape === 'galaxy' || tier.shape === 'star' ? 0.3 : 0.12
+    color,
+    roughness: 0.76,
+    metalness: 0.12,
+    emissive: new THREE.Color(color).multiplyScalar(0.08),
+    emissiveIntensity: 0.75,
   });
 }
 
-function spawnDistance(baseSize) {
-  const zoom = 26 + player.size * 9.5;
-  const near = Math.max(6, zoom * 0.35 + baseSize * 0.25);
-  const far = zoom * 1.15 + baseSize * 0.6;
-  return randomRange(near, far);
+function createItemMesh(def) {
+  let mesh;
+  const mat = makeMaterial(def.color);
+
+  switch (def.shape) {
+    case 'sphere':
+    case 'moon':
+    case 'planet': {
+      mesh = new THREE.Mesh(new THREE.SphereGeometry(1, 24, 24), mat);
+      break;
+    }
+    case 'asteroid': {
+      mesh = new THREE.Mesh(new THREE.IcosahedronGeometry(1, 1), mat);
+      break;
+    }
+    case 'rock': {
+      mesh = new THREE.Mesh(new THREE.DodecahedronGeometry(1, 0), mat);
+      break;
+    }
+    case 'crystal': {
+      mesh = new THREE.Mesh(new THREE.OctahedronGeometry(1, 0), mat);
+      break;
+    }
+    case 'spike': {
+      mesh = new THREE.Mesh(new THREE.IcosahedronGeometry(1, 0), mat);
+      break;
+    }
+    case 'capsule': {
+      mesh = new THREE.Mesh(new THREE.CapsuleGeometry(0.55, 0.65, 6, 12), mat);
+      break;
+    }
+    case 'capsuleTall': {
+      mesh = new THREE.Mesh(new THREE.CapsuleGeometry(0.5, 1.3, 6, 12), mat);
+      break;
+    }
+    case 'cone': {
+      mesh = new THREE.Mesh(new THREE.ConeGeometry(0.72, 1.8, 18), mat);
+      break;
+    }
+    case 'box': {
+      mesh = new THREE.Mesh(new THREE.BoxGeometry(1.45, 1.2, 1.3), mat);
+      break;
+    }
+    case 'car': {
+      const group = new THREE.Group();
+      const body = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.85, 1.3), mat);
+      body.position.y = 0.55;
+      const top = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.6, 1.2), mat);
+      top.position.set(0.15, 1.1, 0);
+      group.add(body, top);
+      const wheelMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.9, metalness: 0.05 });
+      for (const x of [-0.8, 0.8]) {
+        for (const z of [-0.65, 0.65]) {
+          const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.26, 0.28, 18), wheelMat);
+          wheel.rotation.z = Math.PI / 2;
+          wheel.position.set(x, 0.28, z);
+          group.add(wheel);
+        }
+      }
+      return group;
+    }
+    case 'truck': {
+      const group = new THREE.Group();
+      const back = new THREE.Mesh(new THREE.BoxGeometry(2.5, 1, 1.45), mat);
+      back.position.y = 0.65;
+      const cab = new THREE.Mesh(new THREE.BoxGeometry(1.05, 1.1, 1.35), mat);
+      cab.position.set(1.35, 0.75, 0);
+      group.add(back, cab);
+      return group;
+    }
+    case 'house': {
+      const group = new THREE.Group();
+      const base = new THREE.Mesh(new THREE.BoxGeometry(2.4, 1.8, 2.2), mat);
+      base.position.y = 0.9;
+      const roof = new THREE.Mesh(new THREE.ConeGeometry(1.95, 1.45, 4), new THREE.MeshStandardMaterial({ color: 0x8a4439, roughness: 0.9 }));
+      roof.position.y = 2.2;
+      roof.rotation.y = Math.PI / 4;
+      group.add(base, roof);
+      return group;
+    }
+    case 'tower': {
+      const group = new THREE.Group();
+      const base = new THREE.Mesh(new THREE.BoxGeometry(1.8, 6, 1.8), mat);
+      base.position.y = 3;
+      const cap = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.4, 2.2), new THREE.MeshStandardMaterial({ color: 0xd7f1ff, roughness: 0.4 }));
+      cap.position.y = 6.1;
+      group.add(base, cap);
+      return group;
+    }
+    case 'building': {
+      const group = new THREE.Group();
+      const body = new THREE.Mesh(new THREE.BoxGeometry(3.2, 7.5, 3.2), mat);
+      body.position.y = 3.75;
+      group.add(body);
+      return group;
+    }
+    case 'stadium': {
+      const group = new THREE.Group();
+      const bowl = new THREE.Mesh(new THREE.CylinderGeometry(4.2, 5.1, 2.4, 24), mat);
+      bowl.position.y = 1.2;
+      group.add(bowl);
+      return group;
+    }
+    default:
+      mesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), mat);
+  }
+
+  return mesh;
 }
 
-function chooseTier() {
-  const edibleMax = player.size * 0.92;
-  const visibleMax = player.size * 2.25;
-  const candidates = [];
-  const weights = [];
+function addGroundDetail(x, z, size) {
+  const stone = new THREE.Mesh(
+    new THREE.DodecahedronGeometry(size, 0),
+    new THREE.MeshStandardMaterial({ color: 0x1d2a36, roughness: 1, metalness: 0 })
+  );
+  stone.position.set(x, size * 0.65, z);
+  stone.rotation.set(Math.random() * 2, Math.random() * 2, Math.random() * 2);
+  stone.receiveShadow = true;
+  itemGroup.add(stone);
+}
 
-  TIERS.forEach((tier, i) => {
-    if (tier.min <= visibleMax) {
-      candidates.push({ tier, index: i });
-      const midpoint = (tier.min + tier.max) * 0.5;
-      const diff = Math.abs(Math.log(midpoint / Math.max(player.size, 0.02)));
-      let w = 1 / (0.4 + diff * 1.25);
-      if (tier.max <= edibleMax) w *= 1.9;
-      if (midpoint < player.size * 0.18) w *= 0.4;
-      if (midpoint > player.size * 1.25) w *= 0.55;
-      weights.push(w);
+for (let i = 0; i < 400; i++) {
+  addGroundDetail((Math.random() - 0.5) * 1800, (Math.random() - 0.5) * 1800, 0.35 + Math.random() * 1.1);
+}
+
+function spawnItem(def, radiusBand = 55) {
+  const holder = new THREE.Group();
+  const mesh = createItemMesh(def);
+  holder.add(mesh);
+  holder.userData.mesh = mesh;
+  const angle = Math.random() * Math.PI * 2;
+  const dist = 15 + Math.random() * radiusBand + playerScale * 1.2;
+  holder.position.set(player.pos.x + Math.cos(angle) * dist, 0, player.pos.z + Math.sin(angle) * dist);
+  holder.rotation.y = Math.random() * Math.PI * 2;
+  holder.scale.setScalar(def.size);
+  holder.traverse(obj => {
+    if (obj.isMesh) {
+      obj.castShadow = true;
+      obj.receiveShadow = true;
     }
   });
-
-  if (!candidates.length) return { tier: TIERS[0], index: 0 };
-  return weightedPick(candidates, weights);
+  itemGroup.add(holder);
+  items.push({ def, mesh: holder, size: def.size, value: def.value, eaten: false, spin: (Math.random() - 0.5) * 0.8 });
 }
 
-function respawnTarget(target) {
-  const choice = chooseTier();
-  const tier = choice.tier;
-  const baseSize = randomRange(tier.min, tier.max);
-  const geo = geometryForTier(tier);
+function getSpawnDefs() {
+  return stages.filter(s => playerScale >= s.min * 0.8).flatMap(s => s.items);
+}
 
-  if (!target.mesh) {
-    target.mesh = new THREE.Mesh(geo, materialForTier(tier));
-    scene.add(target.mesh);
-  } else {
-    target.mesh.geometry.dispose();
-    target.mesh.material.dispose();
-    target.mesh.geometry = geo;
-    target.mesh.material = materialForTier(tier);
+function maintainItems() {
+  const targetCount = Math.min(240, 110 + Math.floor(playerScale * 0.65));
+  const defs = getSpawnDefs();
+  while (items.length < targetCount) {
+    const def = defs[Math.floor(Math.random() * defs.length)];
+    spawnItem(def, Math.max(60, playerScale * 4));
   }
-
-  const angle = Math.random() * Math.PI * 2;
-  const dist = spawnDistance(baseSize);
-  target.mesh.position.set(player.pos.x + Math.cos(angle) * dist, 0, player.pos.z + Math.sin(angle) * dist);
-  target.mesh.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
-
-  target.tierIndex = choice.index;
-  target.label = tier.name;
-  target.baseSize = baseSize;
-  target.size = visualScaleFor(baseSize);
-  target.mass = Math.pow(baseSize, 1.28) * tier.mass;
-  target.beingEaten = false;
-  target.wobble = Math.random() * Math.PI * 2;
-  target.mesh.scale.setScalar(target.size);
-  target.mesh.position.y = target.size * 0.5;
 }
 
-function makeTarget() {
-  const t = { mesh: null, baseSize: 0.1, size: 0.1, mass: 1, beingEaten: false, wobble: 0, tierIndex: 0, label: 'dust' };
-  respawnTarget(t);
-  world.targets.push(t);
+function consume(item) {
+  item.eaten = true;
+  playerMass += item.value;
+  totalScore += item.value;
+  const growth = Math.max(0.0045, item.value * 0.0013) / (0.85 + playerScale * 0.16);
+  playerScale += growth;
+  glowPulse = 1;
+  item.mesh.removeFromParent();
+  const idx = items.indexOf(item);
+  if (idx >= 0) items.splice(idx, 1);
 }
 
-function populate() {
-  const desired = 170 + Math.min(140, Math.floor(player.size * 0.36));
-  while (world.targets.length < desired) makeTarget();
+let glowPulse = 0;
+
+function updateItems(dt) {
+  for (let i = items.length - 1; i >= 0; i--) {
+    const item = items[i];
+    item.mesh.rotation.y += item.spin * dt;
+
+    const dx = player.pos.x - item.mesh.position.x;
+    const dz = player.pos.z - item.mesh.position.z;
+    const dist = Math.hypot(dx, dz);
+    const eatRadius = playerScale * 0.92;
+    const suctionRadius = playerScale * 4.8;
+
+    if (dist < suctionRadius) {
+      const pull = THREE.MathUtils.clamp((suctionRadius - dist) / suctionRadius, 0, 1);
+      item.mesh.position.x += (dx / Math.max(dist, 0.001)) * dt * pull * playerScale * 3.4;
+      item.mesh.position.z += (dz / Math.max(dist, 0.001)) * dt * pull * playerScale * 3.4;
+      item.mesh.scale.lerp(new THREE.Vector3(item.size * (1 - pull * 0.25), item.size * (1 - pull * 0.25), item.size * (1 - pull * 0.25)), 0.2);
+    }
+
+    if (!item.eaten && dist < eatRadius && item.size <= playerScale * 0.95) {
+      consume(item);
+      continue;
+    }
+
+    if (dist > Math.max(160, playerScale * 12)) {
+      item.mesh.removeFromParent();
+      items.splice(i, 1);
+      const defs = getSpawnDefs();
+      spawnItem(defs[Math.floor(Math.random() * defs.length)], Math.max(60, playerScale * 4));
+    }
+  }
 }
 
-function makeParticle(pos, color, scale = 0.1) {
-  const p = new THREE.Mesh(
-    new THREE.SphereGeometry(scale, 8, 8),
-    new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.9 })
-  );
-  p.position.copy(pos);
-  scene.add(p);
-  world.particles.push({
-    mesh: p,
-    life: randomRange(0.36, 0.68),
-    vel: new THREE.Vector3(randomRange(-2.4, 2.4), randomRange(0.4, 2.8), randomRange(-2.4, 2.4))
-  });
-}
+function updateHUD() {
+  sizeEl.textContent = playerScale.toFixed(2);
+  scoreEl.textContent = Math.floor(totalScore).toLocaleString();
+  dimensionEl.textContent = dimension;
+  stageEl.textContent = getStageName();
 
-function growthFrom(baseSize) {
-  return 0.00018 + Math.pow(baseSize, 0.92) * 0.00011;
-}
-
-function eatTarget(target) {
-  totalMass += target.mass;
-  player.size += growthFrom(target.baseSize);
-
-  const idx = world.targets.indexOf(target);
-  if (idx >= 0) world.targets.splice(idx, 1);
-  for (let i = 0; i < 8; i++) makeParticle(target.mesh.position, target.mesh.material.color, clamp(target.size * 0.1, 0.04, 0.35));
-  scene.remove(target.mesh);
-  target.mesh.geometry.dispose();
-  target.mesh.material.dispose();
-
-  applyStage();
-  maybeAnnounceUnlock();
-  if (player.size > 850) collapseReality();
-}
-
-function collapseReality() {
-  if (collapsing) return;
-  collapsing = true;
-  collapseT = 0;
-  milestoneEl.textContent = 'Reality collapsed. Black hole transit to an alternate dimension...';
-}
-
-function clearTargets() {
-  world.targets.forEach(t => {
-    if (!t.mesh) return;
-    scene.remove(t.mesh);
-    t.mesh.geometry.dispose();
-    t.mesh.material.dispose();
-  });
-  world.targets = [];
+  if (nextMilestoneIndex < milestoneThresholds.length && playerScale >= milestoneThresholds[nextMilestoneIndex].size) {
+    setMilestone(milestoneThresholds[nextMilestoneIndex].text);
+    nextMilestoneIndex += 1;
+  }
 }
 
 function resetDimension() {
   dimension += 1;
-  dimensionEl.textContent = String(dimension);
-  player.size = 0.24;
+  playerScale = 1;
+  playerMass = 0;
   player.pos.set(0, 0, 0);
   player.vel.set(0, 0, 0);
-  lastUnlockTier = -1;
-  clearTargets();
-  applyStage(true);
-  maybeAnnounceUnlock();
-  populate();
-  collapsing = false;
-  ring.scale.setScalar(1);
+  nextMilestoneIndex = 0;
+  setMilestone(`Reality collapsed. Welcome to dimension ${dimension}.`);
+  for (const item of items) item.mesh.removeFromParent();
+  items.length = 0;
 }
+
+const pointer = {
+  active: false,
+  id: null,
+  startX: 0,
+  startY: 0,
+  dx: 0,
+  dy: 0,
+};
 
 function updateJoystickVisual() {
-  joystick.style.left = `${joy.origin.x}px`;
-  joystick.style.top = `${joy.origin.y}px`;
-  joystickKnob.style.transform = `translate(calc(-50% + ${joy.move.x}px), calc(-50% + ${joy.move.y}px))`;
-  const mag = Math.hypot(joy.move.x, joy.move.y);
-  const size = 94 + mag * 0.78;
-  joystickBase.style.width = `${size}px`;
-  joystickBase.style.height = `${size}px`;
+  if (!pointer.active) {
+    joystickEl.style.opacity = '0';
+    return;
+  }
+  joystickEl.style.opacity = '1';
+  joystickBaseEl.style.left = `${pointer.startX}px`;
+  joystickBaseEl.style.top = `${pointer.startY}px`;
+  const mag = Math.min(1, Math.hypot(pointer.dx, pointer.dy) / 68);
+  const knobX = pointer.startX + pointer.dx * Math.min(1, 48 / Math.max(1, Math.hypot(pointer.dx, pointer.dy)));
+  const knobY = pointer.startY + pointer.dy * Math.min(1, 48 / Math.max(1, Math.hypot(pointer.dx, pointer.dy)));
+  joystickKnobEl.style.left = `${knobX}px`;
+  joystickKnobEl.style.top = `${knobY}px`;
+  const bubble = 1 + mag * 0.35;
+  joystickBaseEl.style.transform = `translate(-50%, -50%) scale(${bubble})`;
+  joystickKnobEl.style.transform = `translate(-50%, -50%) scale(${1 + mag * 0.15})`;
 }
 
-function pointerStart(e) {
-  if (!running || joy.active) return;
-  joy.active = true;
-  joy.id = e.pointerId;
-  joy.origin.x = e.clientX;
-  joy.origin.y = e.clientY;
-  joy.move.x = 0;
-  joy.move.y = 0;
-  joystick.classList.remove('hidden');
-  updateJoystickVisual();
-}
-function pointerMove(e) {
-  if (!joy.active || e.pointerId !== joy.id) return;
-  let dx = e.clientX - joy.origin.x;
-  let dy = e.clientY - joy.origin.y;
-  const mag = Math.hypot(dx, dy);
-  if (mag > joy.max) {
-    dx = (dx / mag) * joy.max;
-    dy = (dy / mag) * joy.max;
+function setPointerMove(clientX, clientY) {
+  pointer.dx = clientX - pointer.startX;
+  pointer.dy = clientY - pointer.startY;
+  const len = Math.hypot(pointer.dx, pointer.dy);
+  const clamp = 68;
+  if (len > clamp) {
+    pointer.dx = (pointer.dx / len) * clamp;
+    pointer.dy = (pointer.dy / len) * clamp;
   }
-  joy.move.x = dx;
-  joy.move.y = dy;
+  player.dir.set(pointer.dx / clamp, pointer.dy / clamp);
   updateJoystickVisual();
 }
-function pointerEnd(e) {
-  if (e.pointerId !== joy.id) return;
-  joy.active = false;
-  joy.id = null;
-  joy.move.x = 0;
-  joy.move.y = 0;
-  joystick.classList.add('hidden');
+
+window.addEventListener('pointerdown', (e) => {
+  pointer.active = true;
+  pointer.id = e.pointerId;
+  pointer.startX = e.clientX;
+  pointer.startY = e.clientY;
+  pointer.dx = 0;
+  pointer.dy = 0;
+  updateJoystickVisual();
+});
+
+window.addEventListener('pointermove', (e) => {
+  if (!pointer.active || e.pointerId !== pointer.id) return;
+  setPointerMove(e.clientX, e.clientY);
+});
+
+function endPointer(e) {
+  if (!pointer.active || (e && e.pointerId !== pointer.id)) return;
+  pointer.active = false;
+  pointer.id = null;
+  pointer.dx = 0;
+  pointer.dy = 0;
+  player.dir.set(0, 0);
   updateJoystickVisual();
 }
-window.addEventListener('pointerdown', pointerStart);
-window.addEventListener('pointermove', pointerMove);
-window.addEventListener('pointerup', pointerEnd);
-window.addEventListener('pointercancel', pointerEnd);
+window.addEventListener('pointerup', endPointer);
+window.addEventListener('pointercancel', endPointer);
 
 window.addEventListener('keydown', (e) => {
-  const k = e.key.toLowerCase();
-  if (k === 'w' || k === 'arrowup') joy.move.y = -joy.max;
-  if (k === 's' || k === 'arrowdown') joy.move.y = joy.max;
-  if (k === 'a' || k === 'arrowleft') joy.move.x = -joy.max;
-  if (k === 'd' || k === 'arrowright') joy.move.x = joy.max;
+  if (e.key === 'w' || e.key === 'ArrowUp') player.dir.y = -1;
+  if (e.key === 's' || e.key === 'ArrowDown') player.dir.y = 1;
+  if (e.key === 'a' || e.key === 'ArrowLeft') player.dir.x = -1;
+  if (e.key === 'd' || e.key === 'ArrowRight') player.dir.x = 1;
 });
 window.addEventListener('keyup', (e) => {
-  const k = e.key.toLowerCase();
-  if (['w','arrowup','s','arrowdown'].includes(k)) joy.move.y = 0;
-  if (['a','arrowleft','d','arrowright'].includes(k)) joy.move.x = 0;
+  if (['w','ArrowUp','s','ArrowDown'].includes(e.key)) player.dir.y = 0;
+  if (['a','ArrowLeft','d','ArrowRight'].includes(e.key)) player.dir.x = 0;
 });
 
-startBtn.addEventListener('click', () => {
-  running = true;
-  intro.style.display = 'none';
-});
+function updatePlayer(dt) {
+  const input = new THREE.Vector3(player.dir.x, 0, player.dir.y);
+  if (input.lengthSq() > 1) input.normalize();
+  const maxSpeed = Math.max(5, 12 - Math.log10(1 + playerScale) * 2.2);
+  player.vel.lerp(input.multiplyScalar(maxSpeed), 0.12);
+  player.pos.addScaledVector(player.vel, dt * 4.2);
 
-camera.position.set(0, 10, 18);
-camera.lookAt(0, 0, 0);
-applyStage(true);
-maybeAnnounceUnlock();
-populate();
+  playerGroup.position.copy(player.pos);
+  const radius = playerRadiusBase * playerScale;
+  playerGroup.position.y = radius;
+  playerGroup.scale.setScalar(radius);
 
-const clock = new THREE.Clock();
-function animate() {
-  requestAnimationFrame(animate);
-  const dt = Math.min(clock.getDelta(), 0.033);
+  glowLight.position.set(player.pos.x, radius * 1.3, player.pos.z);
+  glowLight.distance = 22 + playerScale * 0.45;
+  glowLight.intensity = 1.4 + playerScale * 0.006 + glowPulse * 1.2;
 
-  if (running) {
-    if (collapsing) {
-      collapseT += dt;
-      const pull = Math.min(1, collapseT / 3);
-      world.targets.forEach(t => {
-        t.mesh.position.lerp(player.pos, dt * (0.75 + pull * 5.8));
-        t.mesh.scale.multiplyScalar(1 - dt * (0.5 + pull * 1.5));
-      });
-      ring.scale.setScalar(1 + pull * 3.2);
-      const collapseCam = new THREE.Vector3(player.pos.x, 12 + player.size * 10 + pull * 170, player.pos.z + 18 + player.size * 16 + pull * 170);
-      camera.position.lerp(collapseCam, 0.045);
-      camera.lookAt(player.pos);
-      if (collapseT > 3.1) resetDimension();
-    } else {
-      const input = new THREE.Vector3(joy.move.x / joy.max, 0, joy.move.y / joy.max);
-      const targetSpeed = player.speed / Math.pow(player.size + 0.15, 0.1);
-      const desired = input.lengthSq() ? input.normalize().multiplyScalar(targetSpeed) : new THREE.Vector3();
-      player.vel.lerp(desired, 0.1);
-      player.pos.addScaledVector(player.vel, dt);
-
-      const bounds = world.radius + player.size * 18;
-      player.pos.x = clamp(player.pos.x, -bounds, bounds);
-      player.pos.z = clamp(player.pos.z, -bounds, bounds);
-
-      for (let i = world.targets.length - 1; i >= 0; i--) {
-        const t = world.targets[i];
-        t.wobble += dt * (0.8 + 0.2 / Math.max(t.baseSize, 0.03));
-        if (!t.beingEaten) t.mesh.rotation.y += dt * 0.35;
-        if (t.tierIndex >= 12) t.mesh.rotation.z += dt * 0.18;
-
-        const idealScale = visualScaleFor(t.baseSize);
-        t.size += (idealScale - t.size) * Math.min(1, dt * 4.3);
-        t.mesh.scale.setScalar(t.size);
-        t.mesh.position.y = t.size * 0.5 + Math.sin(t.wobble) * Math.min(0.05, t.size * 0.05);
-
-        const d = t.mesh.position.distanceTo(player.pos);
-        const eatRadius = Math.max(1.25, player.size * 2.0);
-        const canEat = t.baseSize <= player.size * 0.92;
-
-        if (canEat && d < eatRadius * 2.5) {
-          t.beingEaten = true;
-          const suction = clamp((eatRadius * 2.5 - d) / (eatRadius * 2.5), 0, 1);
-          t.mesh.position.lerp(player.pos, dt * (1.8 + suction * 5.6 + player.size * 0.012));
-          t.mesh.scale.multiplyScalar(1 - dt * (0.8 + suction * 2.8));
-          t.mesh.material.emissive.copy(ring.material.color).multiplyScalar(suction * 0.4);
-        } else {
-          t.beingEaten = false;
-          t.mesh.material.emissive.setRGB(0, 0, 0);
-        }
-
-        if (canEat && d < eatRadius * 0.62) eatTarget(t);
-
-        const off = Math.abs(t.mesh.position.x - player.pos.x) > bounds * 1.25 || Math.abs(t.mesh.position.z - player.pos.z) > bounds * 1.25;
-        if (off && !t.beingEaten) respawnTarget(t);
-      }
-
-      populate();
-    }
-
-    holeGroup.position.copy(player.pos);
-    holeGroup.scale.setScalar(Math.max(0.9, player.size * 6.5));
-    ring.rotation.z += dt * 0.5;
-
-    for (let i = world.particles.length - 1; i >= 0; i--) {
-      const p = world.particles[i];
-      p.life -= dt;
-      p.mesh.position.addScaledVector(p.vel, dt);
-      p.mesh.material.opacity = Math.max(0, p.life * 2);
-      p.mesh.scale.multiplyScalar(0.992);
-      if (p.life <= 0) {
-        scene.remove(p.mesh);
-        p.mesh.geometry.dispose();
-        p.mesh.material.dispose();
-        world.particles.splice(i, 1);
-      }
-    }
-
-    const zoom = 12 + player.size * 17;
-    const camHeight = 7 + player.size * 10;
-    const lookAhead = Math.min(zoom * 0.12, 20);
-    const camTarget = new THREE.Vector3(player.pos.x, camHeight, player.pos.z + zoom);
-    camera.position.lerp(camTarget, 0.08);
-    camera.lookAt(player.pos.x, 0, player.pos.z - lookAhead);
-    camera.fov = clamp(58 + player.size * 0.018, 58, 82);
-    camera.updateProjectionMatrix();
-
-    floor.scale.setScalar(Math.max(1, 1 + player.size * 0.16));
-    stars.visible = player.size > 24;
-    stars.position.set(player.pos.x * 0.08, 0, player.pos.z * 0.08);
-
-    sizeEl.textContent = player.size.toFixed(3);
-    scoreEl.textContent = Math.floor(totalMass).toLocaleString();
+  const speed = player.vel.length();
+  if (speed > 0.01) {
+    const rollAmount = speed * dt * 1.75;
+    const axis = new THREE.Vector3(player.vel.z, 0, -player.vel.x).normalize();
+    playerSphere.rotateOnWorldAxis(axis, rollAmount);
+    playerGlow.rotateOnWorldAxis(axis, rollAmount * 0.8);
+    trail.rotation.z += dt * speed * 0.25;
   }
 
+  const pulse = 0.08 + Math.sin(performance.now() * 0.0045) * 0.02 + glowPulse * 0.12;
+  playerGlow.scale.setScalar(1.04 + pulse);
+  outlineRing.scale.setScalar(1 + pulse * 0.25);
+  ringMat.opacity = 0.48 + pulse * 0.8;
+  shellMat.opacity = 0.12 + pulse * 0.55;
+  glowPulse = Math.max(0, glowPulse - dt * 1.5);
+
+  const camLift = 10 + playerScale * 0.55;
+  targetCameraDistance = 16 + playerScale * 1.22;
+  camera.position.lerp(new THREE.Vector3(player.pos.x, camLift, player.pos.z + targetCameraDistance), 0.08);
+  camera.lookAt(player.pos.x, radius * 0.5, player.pos.z);
+
+  grid.position.set(player.pos.x, 0.02, player.pos.z);
+
+  const cosmic = Math.min(1, Math.max(0, (playerScale - 120) / 140));
+  scene.fog.density = 0.018 - cosmic * 0.012;
+  scene.background.lerpColors(new THREE.Color(0x02060d), new THREE.Color(0x000000), cosmic);
+  groundMat.color.lerpColors(new THREE.Color(0x152330), new THREE.Color(0x020205), cosmic);
+  starMat.opacity = 0.45 + cosmic * 0.65;
+  starMat.size = 2.2 + cosmic * 2.1;
+
+  if (playerScale >= 300) {
+    resetDimension();
+  }
+}
+
+function animate() {
+  requestAnimationFrame(animate);
+  const now = performance.now();
+  const dt = Math.min(0.033, (now - (animate.last || now)) / 1000);
+  animate.last = now;
+
+  updatePlayer(dt);
+  updateItems(dt);
+  maintainItems();
+  updateHUD();
   renderer.render(scene, camera);
 }
+
+maintainItems();
+updateHUD();
 animate();
 
 window.addEventListener('resize', () => {
