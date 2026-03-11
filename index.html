@@ -18,14 +18,16 @@
         <div>Stage: <span id="stageValue">Micro</span></div>
       </div>
       <div id="milestone">Eat dust and germs to begin.</div>
+      <div id="errorBanner" hidden></div>
     </div>
 
-    <div id="joystick">
+    <div id="joystick" aria-hidden="true">
       <div id="joystickBase"></div>
       <div id="joystickKnob"></div>
     </div>
   </div>
 
-  <script type="module" src="script.js"></script>
+  <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+  <script src="script.js"></script>
 </body>
 </html>
