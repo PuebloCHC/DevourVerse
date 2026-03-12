@@ -139,11 +139,9 @@
 
     const stageDefs = [
       { name: 'Micro', min: 1, unlock: 1, items: [
-        { name: 'Dust', size: 0.055, value: 0.16, type: 'dust', color: 0xc7b38a },
-        { name: 'Germ', size: 0.075, value: 0.2, type: 'germ', color: 0x6cffe1 },
-        { name: 'Mote', size: 0.065, value: 0.18, type: 'crystal', color: 0xeef6e8 },
-        { name: 'Spore', size: 0.06, value: 0.17, type: 'dust', color: 0xb9d39f },
-        { name: 'Microbe', size: 0.07, value: 0.19, type: 'germ', color: 0x94ffb5 },
+        { name: 'Dust', size: 0.08, value: 0.2, type: 'dust', color: 0xc7b38a },
+        { name: 'Germ', size: 0.11, value: 0.28, type: 'germ', color: 0x6cffe1 },
+        { name: 'Mote', size: 0.09, value: 0.22, type: 'crystal', color: 0xeef6e8 },
       ]},
       { name: 'Tiny', min: 2.6, unlock: 2.1, items: [
         { name: 'Seed', size: 0.18, value: 0.55, type: 'seed', color: 0x8f643a },
@@ -379,6 +377,18 @@
       return stageDefs.filter(s => playerScale >= s.unlock).flatMap(s => s.items);
     }
 
+    function pickSpawnDef(defs) {
+      const weighted = [];
+      for (const def of defs) {
+        let weight = Math.max(1, Math.round(16 / Math.max(0.08, def.size)));
+        if (def.name === 'Dust') weight += 28;
+        if (def.name === 'Germ') weight += 24;
+        if (def.name === 'Mote') weight += 20;
+        for (let i = 0; i < weight; i++) weighted.push(def);
+      }
+      return weighted[Math.floor(Math.random() * weighted.length)] || defs[0];
+    }
+
     function spawnItem(def, radiusBand = 80) {
       const holder = new THREE.Group();
       const mesh = createItemMesh(def);
@@ -386,8 +396,7 @@
       holder.userData.baseSize = def.size;
       holder.userData.def = def;
       const angle = Math.random() * Math.PI * 2;
-      const baseOffset = playerScale < 2.2 ? 8 : playerScale < 4.5 ? 12 : 18;
-      const dist = baseOffset + Math.random() * radiusBand + playerScale * 1.8;
+      const dist = 18 + Math.random() * radiusBand + playerScale * 1.8;
       holder.position.set(player.pos.x + Math.cos(angle) * dist, 0, player.pos.z + Math.sin(angle) * dist);
       holder.rotation.y = Math.random() * Math.PI * 2;
       holder.scale.setScalar(def.size);
@@ -401,34 +410,13 @@
       items.push({ mesh: holder, size: def.size, value: def.value, eaten: false, spin: (Math.random() - 0.5) * 0.7 });
     }
 
-    function getWeightedSpawnDef(defs) {
-      if (playerScale < 2.2) {
-        const micro = defs.filter(def => ['dust', 'germ', 'crystal'].includes(def.type));
-        if (micro.length) {
-          const roll = Math.random();
-          if (roll < 0.6) return micro.filter(def => def.type === 'dust')[Math.floor(Math.random() * Math.max(1, micro.filter(def => def.type === 'dust').length))] || micro[Math.floor(Math.random() * micro.length)];
-          if (roll < 0.9) return micro.filter(def => def.type === 'germ')[Math.floor(Math.random() * Math.max(1, micro.filter(def => def.type === 'germ').length))] || micro[Math.floor(Math.random() * micro.length)];
-          return micro[Math.floor(Math.random() * micro.length)];
-        }
-      }
-      if (playerScale < 4.5) {
-        const tinyish = defs.filter(def => ['dust', 'germ', 'crystal', 'seed', 'rock', 'berry'].includes(def.type));
-        if (tinyish.length && Math.random() < 0.72) return tinyish[Math.floor(Math.random() * tinyish.length)];
-      }
-      return defs[Math.floor(Math.random() * defs.length)];
-    }
-
     function maintainItems() {
       const defs = getSpawnDefs();
       if (!defs.length) return;
-      const targetCount = playerScale < 2.2
-        ? 520
-        : playerScale < 4.5
-          ? 420
-          : Math.min(340, 180 + Math.floor(playerScale * 0.75));
+      const targetCount = Math.min(950, 520 + Math.floor(playerScale * 1.4));
       while (items.length < targetCount) {
-        const def = getWeightedSpawnDef(defs);
-        const radiusBand = playerScale < 2.2 ? 34 : playerScale < 4.5 ? 48 : Math.max(80, playerScale * 4.8);
+        const def = pickSpawnDef(defs);
+        const radiusBand = def.size <= 0.11 ? Math.max(70, playerScale * 8.5) : Math.max(120, playerScale * 6.5);
         spawnItem(def, radiusBand);
       }
     }
@@ -442,6 +430,16 @@
       item.mesh.removeFromParent();
       const idx = items.indexOf(item);
       if (idx >= 0) items.splice(idx, 1);
+
+      const defs = getSpawnDefs();
+      if (defs.length) {
+        const respawnBursts = item.size <= 0.11 ? 3 : 1;
+        for (let n = 0; n < respawnBursts; n++) {
+          const def = pickSpawnDef(defs);
+          const radiusBand = def.size <= 0.11 ? Math.max(55, playerScale * 6.5) : Math.max(100, playerScale * 5.5);
+          spawnItem(def, radiusBand);
+        }
+      }
     }
 
     function updateItems(dt) {
@@ -474,8 +472,8 @@
           item.mesh.removeFromParent();
           items.splice(i, 1);
           if (defs.length) {
-            const def = getWeightedSpawnDef(defs);
-            const radiusBand = playerScale < 2.2 ? 34 : playerScale < 4.5 ? 48 : Math.max(80, playerScale * 4.8);
+            const def = pickSpawnDef(defs);
+            const radiusBand = def.size <= 0.11 ? Math.max(70, playerScale * 8.5) : Math.max(120, playerScale * 6.5);
             spawnItem(def, radiusBand);
           }
         }
