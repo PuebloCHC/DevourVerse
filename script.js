@@ -139,9 +139,11 @@
 
     const stageDefs = [
       { name: 'Micro', min: 1, unlock: 1, items: [
-        { name: 'Dust', size: 0.065, value: 0.1, type: 'dust', color: 0xc7b38a, weight: 9 },
-        { name: 'Germ', size: 0.09, value: 0.14, type: 'germ', color: 0x6cffe1, weight: 7 },
-        { name: 'Mote', size: 0.075, value: 0.11, type: 'crystal', color: 0xeef6e8, weight: 8 },
+        { name: 'Dust', size: 0.055, value: 0.16, type: 'dust', color: 0xc7b38a },
+        { name: 'Germ', size: 0.075, value: 0.2, type: 'germ', color: 0x6cffe1 },
+        { name: 'Mote', size: 0.065, value: 0.18, type: 'crystal', color: 0xeef6e8 },
+        { name: 'Spore', size: 0.06, value: 0.17, type: 'dust', color: 0xb9d39f },
+        { name: 'Microbe', size: 0.07, value: 0.19, type: 'germ', color: 0x94ffb5 },
       ]},
       { name: 'Tiny', min: 2.6, unlock: 2.1, items: [
         { name: 'Seed', size: 0.18, value: 0.55, type: 'seed', color: 0x8f643a },
@@ -384,7 +386,8 @@
       holder.userData.baseSize = def.size;
       holder.userData.def = def;
       const angle = Math.random() * Math.PI * 2;
-      const dist = 18 + Math.random() * radiusBand + playerScale * 1.8;
+      const baseOffset = playerScale < 2.2 ? 8 : playerScale < 4.5 ? 12 : 18;
+      const dist = baseOffset + Math.random() * radiusBand + playerScale * 1.8;
       holder.position.set(player.pos.x + Math.cos(angle) * dist, 0, player.pos.z + Math.sin(angle) * dist);
       holder.rotation.y = Math.random() * Math.PI * 2;
       holder.scale.setScalar(def.size);
@@ -398,43 +401,35 @@
       items.push({ mesh: holder, size: def.size, value: def.value, eaten: false, spin: (Math.random() - 0.5) * 0.7 });
     }
 
-    function pickWeightedDef(defs) {
-      let totalWeight = 0;
-      for (const def of defs) totalWeight += def.weight || 1;
-      let roll = Math.random() * totalWeight;
-      for (const def of defs) {
-        roll -= def.weight || 1;
-        if (roll <= 0) return def;
+    function getWeightedSpawnDef(defs) {
+      if (playerScale < 2.2) {
+        const micro = defs.filter(def => ['dust', 'germ', 'crystal'].includes(def.type));
+        if (micro.length) {
+          const roll = Math.random();
+          if (roll < 0.6) return micro.filter(def => def.type === 'dust')[Math.floor(Math.random() * Math.max(1, micro.filter(def => def.type === 'dust').length))] || micro[Math.floor(Math.random() * micro.length)];
+          if (roll < 0.9) return micro.filter(def => def.type === 'germ')[Math.floor(Math.random() * Math.max(1, micro.filter(def => def.type === 'germ').length))] || micro[Math.floor(Math.random() * micro.length)];
+          return micro[Math.floor(Math.random() * micro.length)];
+        }
       }
-      return defs[defs.length - 1];
+      if (playerScale < 4.5) {
+        const tinyish = defs.filter(def => ['dust', 'germ', 'crystal', 'seed', 'rock', 'berry'].includes(def.type));
+        if (tinyish.length && Math.random() < 0.72) return tinyish[Math.floor(Math.random() * tinyish.length)];
+      }
+      return defs[Math.floor(Math.random() * defs.length)];
     }
 
     function maintainItems() {
       const defs = getSpawnDefs();
       if (!defs.length) return;
-      const microTypes = ['dust', 'germ', 'crystal'];
-      const baseTarget = playerScale < 2.6 ? 240 : 120;
-      const scaleTarget = playerScale < 2.6 ? Math.floor(playerScale * 10) : Math.floor(playerScale * 0.55);
-      const targetCount = Math.min(420, baseTarget + scaleTarget);
-      const radiusBand = playerScale < 2.6 ? 36 : Math.max(80, playerScale * 4.8);
-
+      const targetCount = playerScale < 2.2
+        ? 520
+        : playerScale < 4.5
+          ? 420
+          : Math.min(340, 180 + Math.floor(playerScale * 0.75));
       while (items.length < targetCount) {
-        const def = pickWeightedDef(defs);
+        const def = getWeightedSpawnDef(defs);
+        const radiusBand = playerScale < 2.2 ? 34 : playerScale < 4.5 ? 48 : Math.max(80, playerScale * 4.8);
         spawnItem(def, radiusBand);
-      }
-
-      if (playerScale < 2.6) {
-        const microDefs = defs.filter(def => microTypes.includes(def.type));
-        let currentMicro = items.filter(item => {
-          const type = item.mesh?.userData?.def?.type;
-          return microTypes.includes(type);
-        }).length;
-        const desiredMicro = Math.max(170, Math.floor(targetCount * 0.74));
-        while (microDefs.length && items.length < 420 && currentMicro < desiredMicro) {
-          spawnItem(pickWeightedDef(microDefs), 24);
-          currentMicro += 1;
-          if (items.length >= 420) break;
-        }
       }
     }
 
@@ -479,8 +474,9 @@
           item.mesh.removeFromParent();
           items.splice(i, 1);
           if (defs.length) {
-            const def = defs[Math.floor(Math.random() * defs.length)];
-            spawnItem(def, Math.max(80, playerScale * 4.8));
+            const def = getWeightedSpawnDef(defs);
+            const radiusBand = playerScale < 2.2 ? 34 : playerScale < 4.5 ? 48 : Math.max(80, playerScale * 4.8);
+            spawnItem(def, radiusBand);
           }
         }
       }
