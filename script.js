@@ -28,16 +28,16 @@
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0xf7fbff);
-    scene.fog = new THREE.FogExp2(0xf7fbff, 0.008);
+    scene.background = new THREE.Color(0xe8f7ee);
+    scene.fog = new THREE.FogExp2(0xe8f7ee, 0.008);
 
     const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 12000);
     camera.position.set(0, 12, 18);
 
-    const hemi = new THREE.HemisphereLight(0x99ffcc, 0x081018, 1.18);
+    const hemi = new THREE.HemisphereLight(0xf8fff9, 0xcfe8d7, 1.35);
     scene.add(hemi);
 
-    const sun = new THREE.DirectionalLight(0xf4fff8, 1.55);
+    const sun = new THREE.DirectionalLight(0xffffff, 1.35);
     sun.position.set(30, 42, 20);
     sun.castShadow = true;
     sun.shadow.mapSize.set(2048, 2048);
@@ -51,10 +51,10 @@
     scene.add(glowLight);
 
     const groundMat = new THREE.MeshStandardMaterial({
-      color: 0xffffff,
+      color: 0xdff1e4,
       roughness: 0.98,
       metalness: 0.01,
-      emissive: 0xf2f7fb,
+      emissive: 0xc9edd6,
       emissiveIntensity: 0.08,
     });
     const ground = new THREE.Mesh(new THREE.PlaneGeometry(12000, 12000), groundMat);
@@ -62,7 +62,7 @@
     ground.receiveShadow = true;
     scene.add(ground);
 
-    const grid = new THREE.GridHelper(12000, 420, 0xbfd9cb, 0xe7f0eb);
+    const grid = new THREE.GridHelper(12000, 420, 0xb7dbc4, 0xcde9d7);
     grid.material.transparent = true;
     grid.material.opacity = 0.18;
     scene.add(grid);
@@ -79,50 +79,66 @@
       starPositions[i * 3 + 2] = Math.sin(angle) * radius;
     }
     starsGeo.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
-    const starsMat = new THREE.PointsMaterial({ color: 0xdeffee, size: 2.1, sizeAttenuation: true, transparent: true, opacity: 0.08 });
+    const starsMat = new THREE.PointsMaterial({ color: 0xffffff, size: 2.1, sizeAttenuation: true, transparent: true, opacity: 0.0 });
     const stars = new THREE.Points(starsGeo, starsMat);
     scene.add(stars);
 
     const playerRoot = new THREE.Group();
     scene.add(playerRoot);
 
-    const holeOuter = new THREE.Mesh(
-      new THREE.CylinderGeometry(1.24, 1.18, 0.34, 56, 1, true),
-      new THREE.MeshBasicMaterial({ color: 0x54ff96, transparent: true, opacity: 0.22, side: THREE.DoubleSide, blending: THREE.AdditiveBlending })
+    const holeShadow = new THREE.Mesh(
+      new THREE.CircleGeometry(1.28, 48),
+      new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.12 })
     );
-    holeOuter.rotation.x = -Math.PI / 2;
-    holeOuter.position.y = 0.02;
-    playerRoot.add(holeOuter);
+    holeShadow.rotation.x = -Math.PI / 2;
+    holeShadow.position.y = 0.01;
+    playerRoot.add(holeShadow);
+
+    const holeWall = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.98, 0.82, 0.52, 48, 1, true),
+      new THREE.MeshStandardMaterial({ color: 0x050505, roughness: 0.96, metalness: 0.0, side: THREE.DoubleSide, emissive: 0x010101, emissiveIntensity: 0.2 })
+    );
+    holeWall.position.y = -0.22;
+    playerRoot.add(holeWall);
+
+    const holeBottom = new THREE.Mesh(
+      new THREE.CircleGeometry(0.82, 48),
+      new THREE.MeshBasicMaterial({ color: 0x000000, transparent: false })
+    );
+    holeBottom.rotation.x = -Math.PI / 2;
+    holeBottom.position.y = -0.48;
+    playerRoot.add(holeBottom);
+
+    const holeMouth = new THREE.Mesh(
+      new THREE.RingGeometry(0.78, 1.03, 56),
+      new THREE.MeshBasicMaterial({ color: 0x020202, transparent: true, opacity: 0.98, side: THREE.DoubleSide })
+    );
+    holeMouth.rotation.x = -Math.PI / 2;
+    holeMouth.position.y = 0.02;
+    playerRoot.add(holeMouth);
 
     const auraRing = new THREE.Mesh(
-      new THREE.RingGeometry(0.98, 1.46, 56),
-      new THREE.MeshBasicMaterial({ color: 0x6cffab, transparent: true, opacity: 0.85, side: THREE.DoubleSide, blending: THREE.AdditiveBlending })
+      new THREE.RingGeometry(1.05, 1.35, 64),
+      new THREE.MeshBasicMaterial({ color: 0x60ff9f, transparent: true, opacity: 0.46, side: THREE.DoubleSide, blending: THREE.AdditiveBlending })
     );
     auraRing.rotation.x = -Math.PI / 2;
     auraRing.position.y = 0.03;
     playerRoot.add(auraRing);
 
-    const holeInner = new THREE.Mesh(
-      new THREE.CircleGeometry(1.02, 56),
-      new THREE.MeshBasicMaterial({ color: 0x020202, transparent: true, opacity: 0.98 })
+    const glowShell = new THREE.Mesh(
+      new THREE.RingGeometry(1.18, 1.7, 72),
+      new THREE.MeshBasicMaterial({ color: 0x70ffad, transparent: true, opacity: 0.18, side: THREE.DoubleSide, blending: THREE.AdditiveBlending })
     );
-    holeInner.rotation.x = -Math.PI / 2;
-    holeInner.position.y = 0.025;
-    playerRoot.add(holeInner);
-
-    const holeDepth = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.82, 0.98, 0.72, 48, 1, true),
-      new THREE.MeshStandardMaterial({ color: 0x050505, roughness: 1, metalness: 0, emissive: 0x000000, side: THREE.DoubleSide })
-    );
-    holeDepth.position.y = -0.32;
-    playerRoot.add(holeDepth);
+    glowShell.rotation.x = -Math.PI / 2;
+    glowShell.position.y = 0.04;
+    playerRoot.add(glowShell);
 
     const shadowTrail = new THREE.Mesh(
-      new THREE.CircleGeometry(1.52, 40),
-      new THREE.MeshBasicMaterial({ color: 0x54ff96, transparent: true, opacity: 0.10 })
+      new THREE.CircleGeometry(1.1, 48),
+      new THREE.MeshBasicMaterial({ color: 0x38ff83, transparent: true, opacity: 0.06 })
     );
     shadowTrail.rotation.x = -Math.PI / 2;
-    shadowTrail.position.y = 0.01;
+    shadowTrail.position.y = 0.015;
     playerRoot.add(shadowTrail);
 
     const itemGroup = new THREE.Group();
@@ -368,14 +384,14 @@
     function addGroundDecor() {
       for (let i = 0; i < 350; i++) {
         const s = 0.18 + Math.random() * 0.8;
-        const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(s, 0), simpleMaterial(0xdde5ea, 0.005));
+        const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(s, 0), simpleMaterial(0x162734, 0.01));
         rock.position.set((Math.random() - 0.5) * 2800, s * 0.65, (Math.random() - 0.5) * 2800);
         rock.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
         rock.receiveShadow = true;
         decorGroup.add(rock);
       }
       for (let i = 0; i < 180; i++) {
-        const stalk = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.05, 0.8 + Math.random() * 1.6, 6), simpleMaterial(0xcfd8cf, 0.005));
+        const stalk = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.05, 0.8 + Math.random() * 1.6, 6), simpleMaterial(0x2e7140, 0.02));
         stalk.position.set((Math.random() - 0.5) * 1800, 0.5, (Math.random() - 0.5) * 1800);
         decorGroup.add(stalk);
       }
@@ -477,10 +493,9 @@
         const item = items.pop();
         item.mesh.removeFromParent();
       }
-      const tint = new THREE.Color().setHSL((dimension * 0.07) % 1, 0.18, 0.97);
-      scene.background.copy(tint);
-      scene.fog.color.copy(tint);
-      groundMat.color.copy(tint).lerp(new THREE.Color(0xffffff), 0.65);
+      const hue = (dimension * 0.13) % 1;
+      scene.background.setHSL(hue * 0.25, 0.5, 0.04);
+      groundMat.color.setHSL(hue * 0.25 + 0.08, 0.36, 0.12);
     }
 
     function updateHUD() {
@@ -567,48 +582,45 @@
     function updatePlayer(dt) {
       const input = new THREE.Vector3(player.dir.x, 0, player.dir.y);
       if (input.lengthSq() > 1) input.normalize();
-      const maxSpeed = Math.max(4.4, 12 - Math.log10(1 + playerScale) * 3.2);
-      player.vel.lerp(input.multiplyScalar(maxSpeed), 0.12);
-      player.pos.addScaledVector(player.vel, dt * 4.4);
+      const maxSpeed = Math.max(2.2, 6.2 - Math.log10(1 + playerScale) * 1.2);
+      player.vel.lerp(input.multiplyScalar(maxSpeed), 0.07);
+      player.pos.addScaledVector(player.vel, dt * 2.8);
 
       const radius = 1.15 * playerScale;
       playerRoot.position.copy(player.pos);
       playerRoot.position.y = 0.02;
-      playerRoot.scale.setScalar(radius);
+      playerRoot.scale.set(radius, Math.max(0.16, radius * 0.22), radius);
 
-      glowLight.position.set(player.pos.x, 2 + playerScale * 0.35, player.pos.z);
+      glowLight.position.set(player.pos.x, radius * 1.3, player.pos.z);
       glowLight.distance = 24 + playerScale * 0.55;
-      glowLight.intensity = 1.4 + playerScale * 0.004 + glowPulse * 1.15;
+      glowLight.intensity = 1.6 + playerScale * 0.005 + glowPulse * 1.3;
 
       const speed = player.vel.length();
       if (speed > 0.001) {
-        shadowTrail.rotation.z += dt * speed * 0.2;
+        shadowTrail.rotation.z += dt * speed * 0.14;
       }
 
       const pulse = 0.07 + Math.sin(performance.now() * 0.0043) * 0.02 + glowPulse * 0.11;
-      holeOuter.scale.setScalar(1.02 + pulse * 0.35);
+      glowShell.scale.setScalar(1.04 + pulse);
       auraRing.scale.setScalar(1 + pulse * 0.24);
-      auraRing.material.opacity = 0.55 + pulse * 0.85;
-      holeOuter.material.opacity = 0.16 + pulse * 0.34;
+      auraRing.material.opacity = 0.48 + pulse * 0.9;
+      glowShell.material.opacity = 0.12 + pulse * 0.52;
       glowPulse = Math.max(0, glowPulse - dt * 1.4);
 
       const camLift = 8 + playerScale * 0.95;
-      const camDistance = 12 + playerScale * 1.15;
+      const camDistance = 13 + playerScale * 1.2;
       camera.position.lerp(tmpVec.set(player.pos.x, camLift, player.pos.z + camDistance), 0.08);
-      camera.lookAt(player.pos.x, 0, player.pos.z);
+      camera.lookAt(player.pos.x, radius * 0.5, player.pos.z);
       grid.position.set(player.pos.x, 0.02, player.pos.z);
 
       const cosmic = THREE.MathUtils.clamp((playerScale - 120) / 140, 0, 1);
-      scene.fog.density = 0.008 - cosmic * 0.003;
-      scene.background.lerp(tmpColorB.set(0xeef5fb), 0.06);
-      scene.background.lerp(tmpColorB.set(0x000000), cosmic * 0.03);
-      scene.fog.color.copy(scene.background);
-      tmpColorA.set(0xffffff).lerp(tmpColorB.set(0xcfd8df), Math.min(1, playerScale / 90));
-      tmpColorA.lerp(tmpColorB.set(0x0d1016), cosmic * 0.55);
+      scene.fog.density = 0.008 - cosmic * 0.004;
+      scene.background.copy(tmpColorA.set(0xe8f7ee).lerp(tmpColorB.set(0x020304), cosmic));
+      tmpColorA.set(0xdff1e4).lerp(tmpColorB.set(0x08110d), cosmic);
       groundMat.color.copy(tmpColorA);
-      groundMat.emissive.copy(tmpColorA).multiplyScalar(0.06);
+      groundMat.emissive.copy(tmpColorA).multiplyScalar(0.12);
       starsMat.size = 2.1 + cosmic * 1.8;
-      starsMat.opacity = 0.08 + cosmic * 0.72;
+      starsMat.opacity = cosmic * 0.85;
 
       if (playerScale >= 300) resetDimension();
     }
