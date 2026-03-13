@@ -1,5 +1,5 @@
 :root {
-  --hud-bg: rgba(8, 11, 18, 0.62);
+  --hud-bg: rgba(55, 66, 62, 0.55);
   --hud-border: rgba(120, 255, 170, 0.25);
   --text: #eff7f1;
   --accent: #70ff9e;
@@ -11,7 +11,7 @@ html, body {
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background: #e8f7ee;
+  background: #e9f5ed;
   color: var(--text);
   font-family: Inter, system-ui, Arial, sans-serif;
 }
