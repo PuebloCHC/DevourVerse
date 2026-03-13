@@ -11,7 +11,7 @@ html, body {
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background: #02040a;
+  background: #f7fbff;
   color: var(--text);
   font-family: Inter, system-ui, Arial, sans-serif;
 }

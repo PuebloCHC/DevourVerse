@@ -28,19 +28,16 @@
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
     const scene = new THREE.Scene();
-    const startSkyColor = new THREE.Color(0xf7fbff);
-    const midSkyColor = new THREE.Color(0xcfe1f2);
-    const deepSpaceColor = new THREE.Color(0x000000);
-    scene.background = startSkyColor.clone();
-    scene.fog = new THREE.FogExp2(0xf7fbff, 0.018);
+    scene.background = new THREE.Color(0xf7fbff);
+    scene.fog = new THREE.FogExp2(0xf7fbff, 0.008);
 
     const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 12000);
     camera.position.set(0, 12, 18);
 
-    const hemi = new THREE.HemisphereLight(0xffffff, 0xbcc8d6, 1.35);
+    const hemi = new THREE.HemisphereLight(0x99ffcc, 0x081018, 1.18);
     scene.add(hemi);
 
-    const sun = new THREE.DirectionalLight(0xffffff, 1.65);
+    const sun = new THREE.DirectionalLight(0xf4fff8, 1.55);
     sun.position.set(30, 42, 20);
     sun.castShadow = true;
     sun.shadow.mapSize.set(2048, 2048);
@@ -53,126 +50,21 @@
     const glowLight = new THREE.PointLight(0x38ff83, 2.5, 80, 2);
     scene.add(glowLight);
 
-    function makeMicroGroundTexture() {
-      const c = document.createElement('canvas');
-      c.width = c.height = 512;
-      const ctx = c.getContext('2d');
-      ctx.fillStyle = '#fcfdff';
-      ctx.fillRect(0, 0, c.width, c.height);
-      for (let i = 0; i < 7000; i++) {
-        const x = Math.random() * c.width;
-        const y = Math.random() * c.height;
-        const a = Math.random() * Math.PI * 2;
-        const r = 0.4 + Math.random() * 1.3;
-        ctx.fillStyle = `rgba(205, 214, 222, ${0.04 + Math.random() * 0.08})`;
-        ctx.beginPath();
-        ctx.ellipse(x, y, r * 1.5, r, a, 0, Math.PI * 2);
-        ctx.fill();
-      }
-      for (let i = 0; i < 900; i++) {
-        const x = Math.random() * c.width;
-        const y = Math.random() * c.height;
-        const r = 1 + Math.random() * 4;
-        ctx.fillStyle = `rgba(220, 228, 235, ${0.03 + Math.random() * 0.035})`;
-        ctx.beginPath();
-        ctx.arc(x, y, r, 0, Math.PI * 2);
-        ctx.fill();
-      }
-      const tex = new THREE.CanvasTexture(c);
-      tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-      tex.repeat.set(42, 42);
-      return tex;
-    }
-
-    function makeMacroGroundTexture() {
-      const c = document.createElement('canvas');
-      c.width = c.height = 1024;
-      const ctx = c.getContext('2d');
-      ctx.fillStyle = '#f3f7fb';
-      ctx.fillRect(0, 0, c.width, c.height);
-
-      function blob(cx, cy, rx, ry, color, alpha, points = 14) {
-        ctx.beginPath();
-        for (let i = 0; i <= points; i++) {
-          const t = (i / points) * Math.PI * 2;
-          const wobble = 0.72 + Math.random() * 0.55;
-          const x = cx + Math.cos(t) * rx * wobble;
-          const y = cy + Math.sin(t) * ry * wobble;
-          if (i === 0) ctx.moveTo(x, y);
-          else ctx.lineTo(x, y);
-        }
-        ctx.closePath();
-        ctx.fillStyle = color;
-        ctx.globalAlpha = alpha;
-        ctx.fill();
-        ctx.globalAlpha = 1;
-      }
-
-      for (let i = 0; i < 20; i++) {
-        blob(
-          Math.random() * c.width,
-          Math.random() * c.height,
-          55 + Math.random() * 150,
-          45 + Math.random() * 140,
-          i % 3 === 0 ? '#dfe8cf' : (i % 3 === 1 ? '#d7ddc5' : '#e8d9c7'),
-          0.55 + Math.random() * 0.18,
-          18
-        );
-      }
-
-      ctx.strokeStyle = 'rgba(255,255,255,0.28)';
-      ctx.lineWidth = 10;
-      for (let i = 0; i < 12; i++) {
-        ctx.beginPath();
-        let x = Math.random() * c.width;
-        let y = Math.random() * c.height;
-        ctx.moveTo(x, y);
-        for (let j = 0; j < 6; j++) {
-          x += (Math.random() - 0.5) * 160;
-          y += (Math.random() - 0.5) * 160;
-          ctx.lineTo(x, y);
-        }
-        ctx.stroke();
-      }
-
-      const tex = new THREE.CanvasTexture(c);
-      tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-      tex.repeat.set(3.4, 3.4);
-      return tex;
-    }
-
-    const microGroundTex = makeMicroGroundTexture();
-    const macroGroundTex = makeMacroGroundTexture();
-
     const groundMat = new THREE.MeshStandardMaterial({
       color: 0xffffff,
       roughness: 0.98,
       metalness: 0.01,
-      emissive: 0xeef4fa,
-      emissiveIntensity: 0.1,
-      map: microGroundTex,
+      emissive: 0xf2f7fb,
+      emissiveIntensity: 0.08,
     });
     const ground = new THREE.Mesh(new THREE.PlaneGeometry(12000, 12000), groundMat);
     ground.rotation.x = -Math.PI / 2;
     ground.receiveShadow = true;
     scene.add(ground);
 
-    const macroGround = new THREE.Mesh(
-      new THREE.PlaneGeometry(12000, 12000),
-      new THREE.MeshBasicMaterial({
-        map: macroGroundTex,
-        transparent: true,
-        opacity: 0,
-        depthWrite: false,
-      })
-    );
-    macroGround.rotation.x = -Math.PI / 2;
-    macroGround.position.y = 0.04;
-    scene.add(macroGround);
-
-    const grid = new THREE.GridHelper(12000, 420, 0xb5c0ca, 0xd8e0e7);
+    const grid = new THREE.GridHelper(12000, 420, 0xbfd9cb, 0xe7f0eb);
     grid.material.transparent = true;
-    grid.material.opacity = 0.055;
+    grid.material.opacity = 0.18;
     scene.add(grid);
 
     const starsGeo = new THREE.BufferGeometry();
@@ -187,41 +79,50 @@
       starPositions[i * 3 + 2] = Math.sin(angle) * radius;
     }
     starsGeo.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
-    const starsMat = new THREE.PointsMaterial({ color: 0xdeffee, size: 1.2, sizeAttenuation: true, transparent: true, opacity: 0.02 });
+    const starsMat = new THREE.PointsMaterial({ color: 0xdeffee, size: 2.1, sizeAttenuation: true, transparent: true, opacity: 0.08 });
     const stars = new THREE.Points(starsGeo, starsMat);
     scene.add(stars);
 
     const playerRoot = new THREE.Group();
     scene.add(playerRoot);
 
-    const playerSphere = new THREE.Mesh(
-      new THREE.SphereGeometry(1, 40, 40),
-      new THREE.MeshStandardMaterial({ color: 0x040404, roughness: 0.28, metalness: 0.16, emissive: 0x061109, emissiveIntensity: 0.75 })
+    const holeOuter = new THREE.Mesh(
+      new THREE.CylinderGeometry(1.24, 1.18, 0.34, 56, 1, true),
+      new THREE.MeshBasicMaterial({ color: 0x54ff96, transparent: true, opacity: 0.22, side: THREE.DoubleSide, blending: THREE.AdditiveBlending })
     );
-    playerSphere.castShadow = true;
-    playerSphere.receiveShadow = true;
-    playerRoot.add(playerSphere);
-
-    const glowShell = new THREE.Mesh(
-      new THREE.SphereGeometry(1.11, 40, 40),
-      new THREE.MeshBasicMaterial({ color: 0x4cff8a, transparent: true, opacity: 0.16, side: THREE.BackSide, blending: THREE.AdditiveBlending })
-    );
-    playerRoot.add(glowShell);
+    holeOuter.rotation.x = -Math.PI / 2;
+    holeOuter.position.y = 0.02;
+    playerRoot.add(holeOuter);
 
     const auraRing = new THREE.Mesh(
-      new THREE.RingGeometry(1.18, 1.42, 48),
-      new THREE.MeshBasicMaterial({ color: 0x60ff9f, transparent: true, opacity: 0.65, side: THREE.DoubleSide, blending: THREE.AdditiveBlending })
+      new THREE.RingGeometry(0.98, 1.46, 56),
+      new THREE.MeshBasicMaterial({ color: 0x6cffab, transparent: true, opacity: 0.85, side: THREE.DoubleSide, blending: THREE.AdditiveBlending })
     );
     auraRing.rotation.x = -Math.PI / 2;
-    auraRing.position.y = -0.98;
+    auraRing.position.y = 0.03;
     playerRoot.add(auraRing);
 
+    const holeInner = new THREE.Mesh(
+      new THREE.CircleGeometry(1.02, 56),
+      new THREE.MeshBasicMaterial({ color: 0x020202, transparent: true, opacity: 0.98 })
+    );
+    holeInner.rotation.x = -Math.PI / 2;
+    holeInner.position.y = 0.025;
+    playerRoot.add(holeInner);
+
+    const holeDepth = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.82, 0.98, 0.72, 48, 1, true),
+      new THREE.MeshStandardMaterial({ color: 0x050505, roughness: 1, metalness: 0, emissive: 0x000000, side: THREE.DoubleSide })
+    );
+    holeDepth.position.y = -0.32;
+    playerRoot.add(holeDepth);
+
     const shadowTrail = new THREE.Mesh(
-      new THREE.CircleGeometry(1.05, 40),
-      new THREE.MeshBasicMaterial({ color: 0x38ff83, transparent: true, opacity: 0.08 })
+      new THREE.CircleGeometry(1.52, 40),
+      new THREE.MeshBasicMaterial({ color: 0x54ff96, transparent: true, opacity: 0.10 })
     );
     shadowTrail.rotation.x = -Math.PI / 2;
-    shadowTrail.position.y = -1.02;
+    shadowTrail.position.y = 0.01;
     playerRoot.add(shadowTrail);
 
     const itemGroup = new THREE.Group();
@@ -467,14 +368,14 @@
     function addGroundDecor() {
       for (let i = 0; i < 350; i++) {
         const s = 0.18 + Math.random() * 0.8;
-        const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(s, 0), simpleMaterial(0xd6dde6, 0.005));
+        const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(s, 0), simpleMaterial(0xdde5ea, 0.005));
         rock.position.set((Math.random() - 0.5) * 2800, s * 0.65, (Math.random() - 0.5) * 2800);
         rock.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
         rock.receiveShadow = true;
         decorGroup.add(rock);
       }
       for (let i = 0; i < 180; i++) {
-        const stalk = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.05, 0.8 + Math.random() * 1.6, 6), simpleMaterial(0xe1e7ee, 0.01));
+        const stalk = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.05, 0.8 + Math.random() * 1.6, 6), simpleMaterial(0xcfd8cf, 0.005));
         stalk.position.set((Math.random() - 0.5) * 1800, 0.5, (Math.random() - 0.5) * 1800);
         decorGroup.add(stalk);
       }
@@ -576,13 +477,10 @@
         const item = items.pop();
         item.mesh.removeFromParent();
       }
-      microGroundTex.repeat.set(42, 42);
-      macroGroundTex.repeat.set(3.4, 3.4);
-      scene.background.copy(startSkyColor);
-      scene.fog.color.copy(startSkyColor);
-      groundMat.color.set(0xffffff);
-      groundMat.emissive.set(0xeef4fa);
-      macroGround.material.opacity = 0;
+      const tint = new THREE.Color().setHSL((dimension * 0.07) % 1, 0.18, 0.97);
+      scene.background.copy(tint);
+      scene.fog.color.copy(tint);
+      groundMat.color.copy(tint).lerp(new THREE.Color(0xffffff), 0.65);
     }
 
     function updateHUD() {
@@ -675,61 +573,42 @@
 
       const radius = 1.15 * playerScale;
       playerRoot.position.copy(player.pos);
-      playerRoot.position.y = radius;
+      playerRoot.position.y = 0.02;
       playerRoot.scale.setScalar(radius);
 
-      glowLight.position.set(player.pos.x, radius * 1.3, player.pos.z);
+      glowLight.position.set(player.pos.x, 2 + playerScale * 0.35, player.pos.z);
       glowLight.distance = 24 + playerScale * 0.55;
-      glowLight.intensity = 1.6 + playerScale * 0.005 + glowPulse * 1.3;
+      glowLight.intensity = 1.4 + playerScale * 0.004 + glowPulse * 1.15;
 
       const speed = player.vel.length();
       if (speed > 0.001) {
-        const axis = tmpVec.set(player.vel.z, 0, -player.vel.x).normalize();
-        const rollAmount = speed * dt * 1.8;
-        playerSphere.rotateOnWorldAxis(axis, rollAmount);
-        glowShell.rotateOnWorldAxis(axis, rollAmount * 0.82);
         shadowTrail.rotation.z += dt * speed * 0.2;
       }
 
       const pulse = 0.07 + Math.sin(performance.now() * 0.0043) * 0.02 + glowPulse * 0.11;
-      glowShell.scale.setScalar(1.04 + pulse);
+      holeOuter.scale.setScalar(1.02 + pulse * 0.35);
       auraRing.scale.setScalar(1 + pulse * 0.24);
-      auraRing.material.opacity = 0.48 + pulse * 0.9;
-      glowShell.material.opacity = 0.12 + pulse * 0.52;
+      auraRing.material.opacity = 0.55 + pulse * 0.85;
+      holeOuter.material.opacity = 0.16 + pulse * 0.34;
       glowPulse = Math.max(0, glowPulse - dt * 1.4);
 
-      const earthZoom = THREE.MathUtils.clamp((playerScale - 1) / 140, 0, 1);
-      const cosmic = THREE.MathUtils.clamp((playerScale - 120) / 140, 0, 1);
-
-      const camLift = 7 + playerScale * 1.02;
-      const camDistance = 10 + playerScale * 1.02;
-      camera.position.lerp(tmpVec.set(player.pos.x, camLift, player.pos.z + camDistance), 0.09);
-      camera.lookAt(player.pos.x, radius * 0.36, player.pos.z);
+      const camLift = 8 + playerScale * 0.95;
+      const camDistance = 12 + playerScale * 1.15;
+      camera.position.lerp(tmpVec.set(player.pos.x, camLift, player.pos.z + camDistance), 0.08);
+      camera.lookAt(player.pos.x, 0, player.pos.z);
       grid.position.set(player.pos.x, 0.02, player.pos.z);
 
-      const microRepeat = THREE.MathUtils.lerp(48, 1.15, earthZoom);
-      microGroundTex.repeat.set(microRepeat, microRepeat);
-      microGroundTex.offset.set(player.pos.x * 0.00022, player.pos.z * 0.00022);
-
-      const macroRepeat = THREE.MathUtils.lerp(7.5, 0.42, earthZoom);
-      macroGroundTex.repeat.set(macroRepeat, macroRepeat);
-      macroGroundTex.offset.set(player.pos.x * 0.000035, player.pos.z * 0.000035);
-
-      macroGround.material.opacity = THREE.MathUtils.clamp((playerScale - 5) / 55, 0, 0.88) * (1 - cosmic * 0.55);
-
-      tmpColorA.copy(startSkyColor).lerp(midSkyColor, earthZoom * 0.85).lerp(deepSpaceColor, cosmic);
-      scene.background.lerp(tmpColorA, 0.08);
+      const cosmic = THREE.MathUtils.clamp((playerScale - 120) / 140, 0, 1);
+      scene.fog.density = 0.008 - cosmic * 0.003;
+      scene.background.lerp(tmpColorB.set(0xeef5fb), 0.06);
+      scene.background.lerp(tmpColorB.set(0x000000), cosmic * 0.03);
       scene.fog.color.copy(scene.background);
-      scene.fog.density = THREE.MathUtils.lerp(0.018, 0.0035, earthZoom) * (1 - cosmic * 0.45);
-
-      tmpColorA.set(0xffffff).lerp(tmpColorB.set(0xd9e5f0), earthZoom * 0.55).lerp(tmpColorB.set(0x07090c), cosmic);
+      tmpColorA.set(0xffffff).lerp(tmpColorB.set(0xcfd8df), Math.min(1, playerScale / 90));
+      tmpColorA.lerp(tmpColorB.set(0x0d1016), cosmic * 0.55);
       groundMat.color.copy(tmpColorA);
-      groundMat.emissive.copy(tmpColorA).multiplyScalar(0.045 + (1 - cosmic) * 0.015);
-
-      grid.material.opacity = THREE.MathUtils.lerp(0.045, 0.012, earthZoom) * (1 - cosmic * 0.6);
-      starsMat.size = 1.2 + cosmic * 2.2;
-      starsMat.opacity = 0.02 + cosmic * 0.92;
-      stars.visible = starsMat.opacity > 0.03;
+      groundMat.emissive.copy(tmpColorA).multiplyScalar(0.06);
+      starsMat.size = 2.1 + cosmic * 1.8;
+      starsMat.opacity = 0.08 + cosmic * 0.72;
 
       if (playerScale >= 300) resetDimension();
     }
