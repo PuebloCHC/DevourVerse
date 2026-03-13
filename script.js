@@ -86,34 +86,51 @@
     const playerRoot = new THREE.Group();
     scene.add(playerRoot);
 
-    const playerSphere = new THREE.Mesh(
-      new THREE.SphereGeometry(1, 40, 40),
-      new THREE.MeshStandardMaterial({ color: 0x040404, roughness: 0.28, metalness: 0.16, emissive: 0x061109, emissiveIntensity: 0.75 })
+    const holeCore = new THREE.Mesh(
+      new THREE.CylinderGeometry(1.02, 1.28, 0.42, 48, 1, true),
+      new THREE.MeshStandardMaterial({ color: 0x040404, roughness: 0.4, metalness: 0.06, emissive: 0x020705, emissiveIntensity: 0.35, side: THREE.DoubleSide })
     );
-    playerSphere.castShadow = true;
-    playerSphere.receiveShadow = true;
-    playerRoot.add(playerSphere);
+    holeCore.castShadow = true;
+    holeCore.receiveShadow = true;
+    playerRoot.add(holeCore);
+
+    const holeCap = new THREE.Mesh(
+      new THREE.CircleGeometry(1.02, 48),
+      new THREE.MeshBasicMaterial({ color: 0x010101, transparent: true, opacity: 0.98 })
+    );
+    holeCap.rotation.x = -Math.PI / 2;
+    holeCap.position.y = 0.2;
+    playerRoot.add(holeCap);
+
+    const innerVoid = new THREE.Mesh(
+      new THREE.CircleGeometry(0.74, 40),
+      new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 1 })
+    );
+    innerVoid.rotation.x = -Math.PI / 2;
+    innerVoid.position.y = 0.205;
+    playerRoot.add(innerVoid);
 
     const glowShell = new THREE.Mesh(
-      new THREE.SphereGeometry(1.11, 40, 40),
-      new THREE.MeshBasicMaterial({ color: 0x4cff8a, transparent: true, opacity: 0.16, side: THREE.BackSide, blending: THREE.AdditiveBlending })
+      new THREE.CylinderGeometry(1.14, 1.42, 0.18, 48, 1, true),
+      new THREE.MeshBasicMaterial({ color: 0x4cff8a, transparent: true, opacity: 0.16, side: THREE.DoubleSide, blending: THREE.AdditiveBlending })
     );
+    glowShell.position.y = 0.02;
     playerRoot.add(glowShell);
 
     const auraRing = new THREE.Mesh(
-      new THREE.RingGeometry(1.18, 1.42, 48),
+      new THREE.RingGeometry(1.1, 1.55, 56),
       new THREE.MeshBasicMaterial({ color: 0x60ff9f, transparent: true, opacity: 0.65, side: THREE.DoubleSide, blending: THREE.AdditiveBlending })
     );
     auraRing.rotation.x = -Math.PI / 2;
-    auraRing.position.y = -0.98;
+    auraRing.position.y = 0.22;
     playerRoot.add(auraRing);
 
     const shadowTrail = new THREE.Mesh(
-      new THREE.CircleGeometry(1.05, 40),
+      new THREE.CircleGeometry(1.28, 40),
       new THREE.MeshBasicMaterial({ color: 0x38ff83, transparent: true, opacity: 0.08 })
     );
     shadowTrail.rotation.x = -Math.PI / 2;
-    shadowTrail.position.y = -1.02;
+    shadowTrail.position.y = -0.2;
     playerRoot.add(shadowTrail);
 
     const itemGroup = new THREE.Group();
@@ -377,18 +394,6 @@
       return stageDefs.filter(s => playerScale >= s.unlock).flatMap(s => s.items);
     }
 
-    function pickSpawnDef(defs) {
-      const weighted = [];
-      for (const def of defs) {
-        let weight = Math.max(1, Math.round(16 / Math.max(0.08, def.size)));
-        if (def.name === 'Dust') weight += 28;
-        if (def.name === 'Germ') weight += 24;
-        if (def.name === 'Mote') weight += 20;
-        for (let i = 0; i < weight; i++) weighted.push(def);
-      }
-      return weighted[Math.floor(Math.random() * weighted.length)] || defs[0];
-    }
-
     function spawnItem(def, radiusBand = 80) {
       const holder = new THREE.Group();
       const mesh = createItemMesh(def);
@@ -413,11 +418,10 @@
     function maintainItems() {
       const defs = getSpawnDefs();
       if (!defs.length) return;
-      const targetCount = Math.min(950, 520 + Math.floor(playerScale * 1.4));
+      const targetCount = Math.min(260, 120 + Math.floor(playerScale * 0.55));
       while (items.length < targetCount) {
-        const def = pickSpawnDef(defs);
-        const radiusBand = def.size <= 0.11 ? Math.max(70, playerScale * 8.5) : Math.max(120, playerScale * 6.5);
-        spawnItem(def, radiusBand);
+        const def = defs[Math.floor(Math.random() * defs.length)];
+        spawnItem(def, Math.max(80, playerScale * 4.8));
       }
     }
 
@@ -430,16 +434,6 @@
       item.mesh.removeFromParent();
       const idx = items.indexOf(item);
       if (idx >= 0) items.splice(idx, 1);
-
-      const defs = getSpawnDefs();
-      if (defs.length) {
-        const respawnBursts = item.size <= 0.11 ? 3 : 1;
-        for (let n = 0; n < respawnBursts; n++) {
-          const def = pickSpawnDef(defs);
-          const radiusBand = def.size <= 0.11 ? Math.max(55, playerScale * 6.5) : Math.max(100, playerScale * 5.5);
-          spawnItem(def, radiusBand);
-        }
-      }
     }
 
     function updateItems(dt) {
@@ -472,9 +466,8 @@
           item.mesh.removeFromParent();
           items.splice(i, 1);
           if (defs.length) {
-            const def = pickSpawnDef(defs);
-            const radiusBand = def.size <= 0.11 ? Math.max(70, playerScale * 8.5) : Math.max(120, playerScale * 6.5);
-            spawnItem(def, radiusBand);
+            const def = defs[Math.floor(Math.random() * defs.length)];
+            spawnItem(def, Math.max(80, playerScale * 4.8));
           }
         }
       }
@@ -580,13 +573,13 @@
     function updatePlayer(dt) {
       const input = new THREE.Vector3(player.dir.x, 0, player.dir.y);
       if (input.lengthSq() > 1) input.normalize();
-      const maxSpeed = Math.max(4.4, 12 - Math.log10(1 + playerScale) * 3.2);
-      player.vel.lerp(input.multiplyScalar(maxSpeed), 0.12);
-      player.pos.addScaledVector(player.vel, dt * 4.4);
+      const maxSpeed = Math.max(2.2, 6.4 - Math.log10(1 + playerScale) * 1.55);
+      player.vel.lerp(input.multiplyScalar(maxSpeed), 0.08);
+      player.pos.addScaledVector(player.vel, dt * 2.5);
 
       const radius = 1.15 * playerScale;
       playerRoot.position.copy(player.pos);
-      playerRoot.position.y = radius;
+      playerRoot.position.y = Math.max(0.1, radius * 0.12);
       playerRoot.scale.setScalar(radius);
 
       glowLight.position.set(player.pos.x, radius * 1.3, player.pos.z);
@@ -595,11 +588,11 @@
 
       const speed = player.vel.length();
       if (speed > 0.001) {
-        const axis = tmpVec.set(player.vel.z, 0, -player.vel.x).normalize();
-        const rollAmount = speed * dt * 1.8;
-        playerSphere.rotateOnWorldAxis(axis, rollAmount);
-        glowShell.rotateOnWorldAxis(axis, rollAmount * 0.82);
-        shadowTrail.rotation.z += dt * speed * 0.2;
+        holeCore.rotation.y += dt * speed * 0.8;
+        holeCap.rotation.z += dt * speed * 0.18;
+        innerVoid.rotation.z -= dt * speed * 0.22;
+        glowShell.rotation.y -= dt * speed * 0.45;
+        shadowTrail.rotation.z += dt * speed * 0.14;
       }
 
       const pulse = 0.07 + Math.sin(performance.now() * 0.0043) * 0.02 + glowPulse * 0.11;
