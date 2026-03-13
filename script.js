@@ -28,16 +28,19 @@
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x03070b);
-    scene.fog = new THREE.FogExp2(0x03070b, 0.02);
+    const startSkyColor = new THREE.Color(0xf7fbff);
+    const midSkyColor = new THREE.Color(0xcfe1f2);
+    const deepSpaceColor = new THREE.Color(0x000000);
+    scene.background = startSkyColor.clone();
+    scene.fog = new THREE.FogExp2(0xf7fbff, 0.018);
 
     const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 12000);
     camera.position.set(0, 12, 18);
 
-    const hemi = new THREE.HemisphereLight(0x99ffcc, 0x081018, 1.18);
+    const hemi = new THREE.HemisphereLight(0xffffff, 0xbcc8d6, 1.35);
     scene.add(hemi);
 
-    const sun = new THREE.DirectionalLight(0xf4fff8, 1.55);
+    const sun = new THREE.DirectionalLight(0xffffff, 1.65);
     sun.position.set(30, 42, 20);
     sun.castShadow = true;
     sun.shadow.mapSize.set(2048, 2048);
@@ -50,21 +53,126 @@
     const glowLight = new THREE.PointLight(0x38ff83, 2.5, 80, 2);
     scene.add(glowLight);
 
+    function makeMicroGroundTexture() {
+      const c = document.createElement('canvas');
+      c.width = c.height = 512;
+      const ctx = c.getContext('2d');
+      ctx.fillStyle = '#fcfdff';
+      ctx.fillRect(0, 0, c.width, c.height);
+      for (let i = 0; i < 7000; i++) {
+        const x = Math.random() * c.width;
+        const y = Math.random() * c.height;
+        const a = Math.random() * Math.PI * 2;
+        const r = 0.4 + Math.random() * 1.3;
+        ctx.fillStyle = `rgba(205, 214, 222, ${0.04 + Math.random() * 0.08})`;
+        ctx.beginPath();
+        ctx.ellipse(x, y, r * 1.5, r, a, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      for (let i = 0; i < 900; i++) {
+        const x = Math.random() * c.width;
+        const y = Math.random() * c.height;
+        const r = 1 + Math.random() * 4;
+        ctx.fillStyle = `rgba(220, 228, 235, ${0.03 + Math.random() * 0.035})`;
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      const tex = new THREE.CanvasTexture(c);
+      tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+      tex.repeat.set(42, 42);
+      return tex;
+    }
+
+    function makeMacroGroundTexture() {
+      const c = document.createElement('canvas');
+      c.width = c.height = 1024;
+      const ctx = c.getContext('2d');
+      ctx.fillStyle = '#f3f7fb';
+      ctx.fillRect(0, 0, c.width, c.height);
+
+      function blob(cx, cy, rx, ry, color, alpha, points = 14) {
+        ctx.beginPath();
+        for (let i = 0; i <= points; i++) {
+          const t = (i / points) * Math.PI * 2;
+          const wobble = 0.72 + Math.random() * 0.55;
+          const x = cx + Math.cos(t) * rx * wobble;
+          const y = cy + Math.sin(t) * ry * wobble;
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.closePath();
+        ctx.fillStyle = color;
+        ctx.globalAlpha = alpha;
+        ctx.fill();
+        ctx.globalAlpha = 1;
+      }
+
+      for (let i = 0; i < 20; i++) {
+        blob(
+          Math.random() * c.width,
+          Math.random() * c.height,
+          55 + Math.random() * 150,
+          45 + Math.random() * 140,
+          i % 3 === 0 ? '#dfe8cf' : (i % 3 === 1 ? '#d7ddc5' : '#e8d9c7'),
+          0.55 + Math.random() * 0.18,
+          18
+        );
+      }
+
+      ctx.strokeStyle = 'rgba(255,255,255,0.28)';
+      ctx.lineWidth = 10;
+      for (let i = 0; i < 12; i++) {
+        ctx.beginPath();
+        let x = Math.random() * c.width;
+        let y = Math.random() * c.height;
+        ctx.moveTo(x, y);
+        for (let j = 0; j < 6; j++) {
+          x += (Math.random() - 0.5) * 160;
+          y += (Math.random() - 0.5) * 160;
+          ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+      }
+
+      const tex = new THREE.CanvasTexture(c);
+      tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+      tex.repeat.set(3.4, 3.4);
+      return tex;
+    }
+
+    const microGroundTex = makeMicroGroundTexture();
+    const macroGroundTex = makeMacroGroundTexture();
+
     const groundMat = new THREE.MeshStandardMaterial({
-      color: 0x10212b,
-      roughness: 0.95,
-      metalness: 0.04,
-      emissive: 0x061017,
-      emissiveIntensity: 0.12,
+      color: 0xffffff,
+      roughness: 0.98,
+      metalness: 0.01,
+      emissive: 0xeef4fa,
+      emissiveIntensity: 0.1,
+      map: microGroundTex,
     });
     const ground = new THREE.Mesh(new THREE.PlaneGeometry(12000, 12000), groundMat);
     ground.rotation.x = -Math.PI / 2;
     ground.receiveShadow = true;
     scene.add(ground);
 
-    const grid = new THREE.GridHelper(12000, 420, 0x15442d, 0x0c1d16);
+    const macroGround = new THREE.Mesh(
+      new THREE.PlaneGeometry(12000, 12000),
+      new THREE.MeshBasicMaterial({
+        map: macroGroundTex,
+        transparent: true,
+        opacity: 0,
+        depthWrite: false,
+      })
+    );
+    macroGround.rotation.x = -Math.PI / 2;
+    macroGround.position.y = 0.04;
+    scene.add(macroGround);
+
+    const grid = new THREE.GridHelper(12000, 420, 0xb5c0ca, 0xd8e0e7);
     grid.material.transparent = true;
-    grid.material.opacity = 0.18;
+    grid.material.opacity = 0.055;
     scene.add(grid);
 
     const starsGeo = new THREE.BufferGeometry();
@@ -79,7 +187,7 @@
       starPositions[i * 3 + 2] = Math.sin(angle) * radius;
     }
     starsGeo.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
-    const starsMat = new THREE.PointsMaterial({ color: 0xdeffee, size: 2.1, sizeAttenuation: true, transparent: true, opacity: 0.82 });
+    const starsMat = new THREE.PointsMaterial({ color: 0xdeffee, size: 1.2, sizeAttenuation: true, transparent: true, opacity: 0.02 });
     const stars = new THREE.Points(starsGeo, starsMat);
     scene.add(stars);
 
@@ -139,11 +247,11 @@
 
     const stageDefs = [
       { name: 'Micro', min: 1, unlock: 1, items: [
-        { name: 'Dust', size: 0.08, value: 0.2, type: 'dust', color: 0xc7b38a },
-        { name: 'Germ', size: 0.11, value: 0.28, type: 'germ', color: 0x6cffe1 },
-        { name: 'Mote', size: 0.09, value: 0.22, type: 'crystal', color: 0xeef6e8 },
+        { name: 'Dust', size: 0.08, value: 0.55, type: 'dust', color: 0xc7b38a },
+        { name: 'Germ', size: 0.11, value: 0.82, type: 'germ', color: 0x6cffe1 },
+        { name: 'Mote', size: 0.09, value: 0.68, type: 'crystal', color: 0xeef6e8 },
       ]},
-      { name: 'Tiny', min: 2.6, unlock: 2.1, items: [
+      { name: 'Tiny', min: 2.25, unlock: 1.85, items: [
         { name: 'Seed', size: 0.18, value: 0.55, type: 'seed', color: 0x8f643a },
         { name: 'Pebble', size: 0.24, value: 0.7, type: 'rock', color: 0x76808c },
         { name: 'Berry', size: 0.2, value: 0.8, type: 'berry', color: 0xff4e72 },
@@ -359,14 +467,14 @@
     function addGroundDecor() {
       for (let i = 0; i < 350; i++) {
         const s = 0.18 + Math.random() * 0.8;
-        const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(s, 0), simpleMaterial(0x162734, 0.01));
+        const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(s, 0), simpleMaterial(0xd6dde6, 0.005));
         rock.position.set((Math.random() - 0.5) * 2800, s * 0.65, (Math.random() - 0.5) * 2800);
         rock.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
         rock.receiveShadow = true;
         decorGroup.add(rock);
       }
       for (let i = 0; i < 180; i++) {
-        const stalk = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.05, 0.8 + Math.random() * 1.6, 6), simpleMaterial(0x2e7140, 0.02));
+        const stalk = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.05, 0.8 + Math.random() * 1.6, 6), simpleMaterial(0xe1e7ee, 0.01));
         stalk.position.set((Math.random() - 0.5) * 1800, 0.5, (Math.random() - 0.5) * 1800);
         decorGroup.add(stalk);
       }
@@ -384,7 +492,7 @@
       holder.userData.baseSize = def.size;
       holder.userData.def = def;
       const angle = Math.random() * Math.PI * 2;
-      const dist = 10 + Math.random() * radiusBand + playerScale * 1.15;
+      const dist = 18 + Math.random() * radiusBand + playerScale * 1.8;
       holder.position.set(player.pos.x + Math.cos(angle) * dist, 0, player.pos.z + Math.sin(angle) * dist);
       holder.rotation.y = Math.random() * Math.PI * 2;
       holder.scale.setScalar(def.size);
@@ -401,17 +509,18 @@
     function maintainItems() {
       const defs = getSpawnDefs();
       if (!defs.length) return;
-      const targetCount = Math.min(950, 420 + Math.floor(playerScale * 1.6));
+      const targetCount = Math.min(260, 120 + Math.floor(playerScale * 0.55));
       while (items.length < targetCount) {
         const def = defs[Math.floor(Math.random() * defs.length)];
-        spawnItem(def, Math.max(110, playerScale * 3.6));
+        spawnItem(def, Math.max(80, playerScale * 4.8));
       }
     }
 
     function consume(item) {
       item.eaten = true;
       totalScore += item.value;
-      const growth = (item.value * 0.0016 + item.size * 0.0005) / (1 + playerScale * 0.28);
+      const earlyBoost = item.size <= 0.12 ? 2.35 : (item.size <= 0.24 ? 1.22 : 1);
+      const growth = ((item.value * 0.0018 + item.size * 0.0006) * earlyBoost) / (1 + playerScale * 0.26);
       playerScale += growth;
       glowPulse = 1;
       item.mesh.removeFromParent();
@@ -450,7 +559,7 @@
           items.splice(i, 1);
           if (defs.length) {
             const def = defs[Math.floor(Math.random() * defs.length)];
-            spawnItem(def, Math.max(110, playerScale * 3.6));
+            spawnItem(def, Math.max(80, playerScale * 4.8));
           }
         }
       }
@@ -467,9 +576,13 @@
         const item = items.pop();
         item.mesh.removeFromParent();
       }
-      const hue = (dimension * 0.13) % 1;
-      scene.background.setHSL(hue * 0.25, 0.5, 0.04);
-      groundMat.color.setHSL(hue * 0.25 + 0.08, 0.36, 0.12);
+      microGroundTex.repeat.set(42, 42);
+      macroGroundTex.repeat.set(3.4, 3.4);
+      scene.background.copy(startSkyColor);
+      scene.fog.color.copy(startSkyColor);
+      groundMat.color.set(0xffffff);
+      groundMat.emissive.set(0xeef4fa);
+      macroGround.material.opacity = 0;
     }
 
     function updateHUD() {
@@ -585,19 +698,38 @@
       glowShell.material.opacity = 0.12 + pulse * 0.52;
       glowPulse = Math.max(0, glowPulse - dt * 1.4);
 
-      const camLift = 8 + playerScale * 0.95;
-      const camDistance = 12 + playerScale * 1.15;
-      camera.position.lerp(tmpVec.set(player.pos.x, camLift, player.pos.z + camDistance), 0.08);
-      camera.lookAt(player.pos.x, radius * 0.5, player.pos.z);
+      const earthZoom = THREE.MathUtils.clamp((playerScale - 1) / 140, 0, 1);
+      const cosmic = THREE.MathUtils.clamp((playerScale - 120) / 140, 0, 1);
+
+      const camLift = 7 + playerScale * 1.02;
+      const camDistance = 10 + playerScale * 1.02;
+      camera.position.lerp(tmpVec.set(player.pos.x, camLift, player.pos.z + camDistance), 0.09);
+      camera.lookAt(player.pos.x, radius * 0.36, player.pos.z);
       grid.position.set(player.pos.x, 0.02, player.pos.z);
 
-      const cosmic = THREE.MathUtils.clamp((playerScale - 120) / 140, 0, 1);
-      scene.fog.density = 0.02 - cosmic * 0.013;
-      scene.background.lerp(tmpColorB.set(0x000000), 0.02);
-      tmpColorA.set(0x10212b).lerp(tmpColorB.set(0x030304), cosmic);
+      const microRepeat = THREE.MathUtils.lerp(48, 1.15, earthZoom);
+      microGroundTex.repeat.set(microRepeat, microRepeat);
+      microGroundTex.offset.set(player.pos.x * 0.00022, player.pos.z * 0.00022);
+
+      const macroRepeat = THREE.MathUtils.lerp(7.5, 0.42, earthZoom);
+      macroGroundTex.repeat.set(macroRepeat, macroRepeat);
+      macroGroundTex.offset.set(player.pos.x * 0.000035, player.pos.z * 0.000035);
+
+      macroGround.material.opacity = THREE.MathUtils.clamp((playerScale - 5) / 55, 0, 0.88) * (1 - cosmic * 0.55);
+
+      tmpColorA.copy(startSkyColor).lerp(midSkyColor, earthZoom * 0.85).lerp(deepSpaceColor, cosmic);
+      scene.background.lerp(tmpColorA, 0.08);
+      scene.fog.color.copy(scene.background);
+      scene.fog.density = THREE.MathUtils.lerp(0.018, 0.0035, earthZoom) * (1 - cosmic * 0.45);
+
+      tmpColorA.set(0xffffff).lerp(tmpColorB.set(0xd9e5f0), earthZoom * 0.55).lerp(tmpColorB.set(0x07090c), cosmic);
       groundMat.color.copy(tmpColorA);
-      starsMat.size = 2.1 + cosmic * 1.8;
-      starsMat.opacity = 0.45 + cosmic * 0.5;
+      groundMat.emissive.copy(tmpColorA).multiplyScalar(0.045 + (1 - cosmic) * 0.015);
+
+      grid.material.opacity = THREE.MathUtils.lerp(0.045, 0.012, earthZoom) * (1 - cosmic * 0.6);
+      starsMat.size = 1.2 + cosmic * 2.2;
+      starsMat.opacity = 0.02 + cosmic * 0.92;
+      stars.visible = starsMat.opacity > 0.03;
 
       if (playerScale >= 300) resetDimension();
     }
