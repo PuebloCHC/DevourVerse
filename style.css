@@ -59,6 +59,32 @@ html, body {
   text-shadow: 0 1px 4px rgba(0, 0, 0, 0.38);
 }
 
+#transitionLog {
+  position: absolute;
+  left: 14px;
+  bottom: 14px;
+  width: min(88vw, 460px);
+  display: grid;
+  gap: 6px;
+}
+
+.transition-entry {
+  padding: 8px 10px;
+  font-size: 12px;
+  border-radius: 10px;
+  background: rgba(7, 12, 18, 0.7);
+  border: 1px solid rgba(140, 220, 255, 0.32);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.2);
+}
+
+#transitionFlash {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 50% 45%, rgba(180,255,244,0.35), rgba(80,180,255,0.06) 38%, rgba(0,0,0,0) 70%);
+  opacity: 0;
+  transition: opacity 80ms linear;
+}
+
 #errorBanner {
   position: absolute;
   left: 50%;
