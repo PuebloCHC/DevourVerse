@@ -1,6 +1,6 @@
 :root {
-  --hud-bg: rgba(55, 66, 62, 0.55);
-  --hud-border: rgba(120, 255, 170, 0.25);
+  --hud-bg: rgba(32, 42, 38, 0.62);
+  --hud-border: rgba(120, 255, 170, 0.3);
   --text: #eff7f1;
   --accent: #70ff9e;
 }
@@ -52,10 +52,25 @@ html, body {
   text-align: center;
   padding: 10px 16px;
   border-radius: 999px;
-  background: rgba(8, 11, 18, 0.7);
-  border: 1px solid rgba(112,255,158,0.26);
+  background: rgba(8, 11, 18, 0.75);
+  border: 1px solid rgba(112,255,158,0.3);
   font-size: 14px;
   box-shadow: 0 10px 26px rgba(0,0,0,0.25);
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.38);
+}
+
+#errorBanner {
+  position: absolute;
+  left: 50%;
+  bottom: 14px;
+  transform: translateX(-50%);
+  max-width: min(94vw, 720px);
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: rgba(90, 8, 16, 0.9);
+  border: 1px solid rgba(255, 120, 120, 0.5);
+  color: #fff0f0;
+  font-size: 13px;
 }
 
 #joystick {
