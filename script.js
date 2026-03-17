@@ -433,7 +433,7 @@
     function consume(item) {
       item.eaten = true;
       totalScore += item.value;
-      const growth = (item.value * 0.0015 + item.size * 0.00055) / (1 + playerScale * 0.23);
+      const growth = (item.value * 0.0026 + item.size * 0.00105) / (1 + playerScale * 0.23);
       playerScale += growth;
       glowPulse = 1;
       item.mesh.removeFromParent();
