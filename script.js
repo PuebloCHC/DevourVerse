@@ -5,6 +5,8 @@
   const dimensionEl = document.getElementById('dimensionValue');
   const stageEl = document.getElementById('stageValue');
   const milestoneEl = document.getElementById('milestone');
+  const transitionLogEl = document.getElementById('transitionLog');
+  const transitionFlashEl = document.getElementById('transitionFlash');
   const joystickEl = document.getElementById('joystick');
   const joystickBaseEl = document.getElementById('joystickBase');
   const joystickKnobEl = document.getElementById('joystickKnob');
@@ -291,12 +293,28 @@
         const floor = new THREE.Mesh(new THREE.CircleGeometry(layer.radius, 64), simpleMat(0xf1f8f2, 0.03, 0.95, 0));
         floor.rotation.x = -Math.PI / 2;
         floor.position.y = -0.04;
+
+        const liquid = new THREE.Mesh(
+          new THREE.CircleGeometry(layer.radius * 0.95, 64),
+          new THREE.MeshStandardMaterial({ color: 0xbff7d9, transparent: true, opacity: 0.34, roughness: 0.08, metalness: 0.12 })
+        );
+        liquid.rotation.x = -Math.PI / 2;
+        liquid.position.y = 0.16;
+
         const wall = new THREE.Mesh(new THREE.CylinderGeometry(layer.radius * 1.02, layer.radius * 1.02, 7, 64, 1, true), new THREE.MeshStandardMaterial({ color: 0xdff2e8, transparent: true, opacity: 0.4, roughness: 0.15, metalness: 0.25 }));
         wall.position.y = 3.5;
+
+        const glassEdge = new THREE.Mesh(
+          new THREE.TorusGeometry(layer.radius * 1.01, 0.7, 18, 96),
+          new THREE.MeshStandardMaterial({ color: 0xf2fff9, emissive: 0xb1ffe5, emissiveIntensity: 0.2, transparent: true, opacity: 0.8, roughness: 0.18, metalness: 0.28 })
+        );
+        glassEdge.rotation.x = Math.PI / 2;
+        glassEdge.position.y = 5.8;
+
         const rim = new THREE.Mesh(new THREE.TorusGeometry(layer.radius * 1.02, 1.7, 20, 80), simpleMat(0xe8fff3, 0.2, 0.2, 0.25));
         rim.rotation.x = Math.PI / 2;
         rim.position.y = 7;
-        g.add(floor, wall, rim);
+        g.add(floor, liquid, wall, glassEdge, rim);
         return g;
       }
       if (layer.key === 'table') {
@@ -304,12 +322,34 @@
         const top = new THREE.Mesh(new THREE.BoxGeometry(layer.radius * 2.2, 6, layer.radius * 2.2), simpleMat(0x8c6340, 0.02, 0.8, 0.05));
         top.position.y = -3;
         g.add(top);
+
+        const legHeight = 96;
+        const legOffsets = [-1, 1];
+        for (const xDir of legOffsets) {
+          for (const zDir of legOffsets) {
+            const leg = new THREE.Mesh(new THREE.BoxGeometry(11, legHeight, 11), simpleMat(0x6c472f, 0.01, 0.88, 0.03));
+            leg.position.set(xDir * layer.radius * 0.85, -6 - legHeight * 0.5, zDir * layer.radius * 0.85);
+            g.add(leg);
+          }
+        }
         return g;
       }
       if (layer.key === 'room') {
+        const g = new THREE.Group();
         const room = new THREE.Mesh(new THREE.BoxGeometry(layer.radius * 2, layer.radius * 0.9, layer.radius * 2), new THREE.MeshStandardMaterial({ color: 0xd7dfd9, roughness: 0.95, metalness: 0.02, side: THREE.BackSide }));
         room.position.y = layer.radius * 0.45 - 8;
-        return room;
+        g.add(room);
+
+        const floorStripe = new THREE.Mesh(new THREE.PlaneGeometry(layer.radius * 1.6, layer.radius * 1.6), new THREE.MeshBasicMaterial({ color: 0x9fa8a3, transparent: true, opacity: 0.22, side: THREE.DoubleSide }));
+        floorStripe.rotation.x = -Math.PI / 2;
+        floorStripe.position.y = 0.3;
+        g.add(floorStripe);
+
+        const wallLine = new THREE.Mesh(new THREE.RingGeometry(layer.radius * 0.76, layer.radius * 0.79, 72), new THREE.MeshBasicMaterial({ color: 0x8d9894, transparent: true, opacity: 0.36, side: THREE.DoubleSide }));
+        wallLine.rotation.x = Math.PI / 2;
+        wallLine.position.y = 12;
+        g.add(wallLine);
+        return g;
       }
       if (layer.key === 'building') {
         const b = new THREE.Mesh(new THREE.BoxGeometry(layer.radius * 1.8, layer.radius * 1.2, layer.radius * 1.8), new THREE.MeshStandardMaterial({ color: 0xc4ced5, roughness: 0.82, metalness: 0.08, side: THREE.BackSide }));
@@ -483,6 +523,28 @@
       return { layer, shell, core, consumed: false, announced: false };
     });
 
+    const anchorGroup = new THREE.Group();
+    layerGroup.add(anchorGroup);
+
+    const tableAnchorTop = new THREE.Mesh(new THREE.CircleGeometry(140, 48), new THREE.MeshBasicMaterial({ color: 0x6f4e34, transparent: true, opacity: 0.2, side: THREE.DoubleSide }));
+    tableAnchorTop.rotation.x = -Math.PI / 2;
+    tableAnchorTop.position.y = -2.8;
+    anchorGroup.add(tableAnchorTop);
+
+    const tableAnchorLegs = [];
+    for (const xDir of [-1, 1]) {
+      for (const zDir of [-1, 1]) {
+        const leg = new THREE.Mesh(new THREE.BoxGeometry(8, 64, 8), new THREE.MeshBasicMaterial({ color: 0x5f412b, transparent: true, opacity: 0.18 }));
+        leg.position.set(xDir * 100, -35, zDir * 100);
+        anchorGroup.add(leg);
+        tableAnchorLegs.push(leg);
+      }
+    }
+
+    const roomAnchor = new THREE.Mesh(new THREE.BoxGeometry(520, 240, 520), new THREE.MeshBasicMaterial({ color: 0xaeb7b2, transparent: true, opacity: 0.08, side: THREE.BackSide }));
+    roomAnchor.position.y = 112;
+    anchorGroup.add(roomAnchor);
+
     const player = { pos: new THREE.Vector3(), vel: new THREE.Vector3(), dir: new THREE.Vector2() };
     let size = 1;
     let visualSize = 1;
@@ -492,8 +554,22 @@
     let pulse = 0;
     let spawnTimer = 0;
     const items = [];
+    const transitionHistory = [];
+    const transitionFX = { timer: 0, duration: 1.2, from: '', to: '', shock: 0 };
+    const consumeFXGroup = new THREE.Group();
+    worldGroup.add(consumeFXGroup);
 
     function setMilestone(text) { milestoneEl.textContent = text; }
+
+    function addTransitionHistory(fromLayer, toLayer) {
+      const text = `Consumed: ${fromLayer} -> Reached: ${toLayer}`;
+      transitionHistory.unshift(text);
+      transitionHistory.length = Math.min(5, transitionHistory.length);
+      if (transitionLogEl) {
+        transitionLogEl.innerHTML = transitionHistory.map((entry) => `<div class="transition-entry">${entry}</div>`).join('');
+      }
+    }
+
     setMilestone('Microverse active: consume germs and dust inside the Petri dish.');
 
     function absoluteScale() {
@@ -597,6 +673,51 @@
       if (i >= 0) items.splice(i, 1);
     }
 
+    function triggerLayerConsumeFX(state, nextState) {
+      transitionFX.timer = transitionFX.duration;
+      transitionFX.from = state.layer.name;
+      transitionFX.to = nextState ? nextState.layer.name : 'Beyond';
+      transitionFX.shock = 1;
+
+      const suctionRing = new THREE.Mesh(
+        new THREE.RingGeometry(4, 5.5, 36),
+        new THREE.MeshBasicMaterial({ color: 0x8cfbff, transparent: true, opacity: 0.9, side: THREE.DoubleSide, depthWrite: false })
+      );
+      suctionRing.rotation.x = -Math.PI / 2;
+      suctionRing.position.copy(state.core.position);
+      suctionRing.position.y += 0.2;
+
+      const ripple = new THREE.Mesh(
+        new THREE.CircleGeometry(5, 40),
+        new THREE.MeshBasicMaterial({ color: 0xc8fff1, transparent: true, opacity: 0.35, side: THREE.DoubleSide, depthWrite: false })
+      );
+      ripple.rotation.x = -Math.PI / 2;
+      ripple.position.copy(state.core.position);
+      ripple.position.y += 0.12;
+
+      consumeFXGroup.add(suctionRing, ripple);
+      consumeFXGroup.userData.active = { suctionRing, ripple, life: 0.55 };
+      addTransitionHistory(state.layer.name, transitionFX.to);
+    }
+
+    function updateConsumeFX(dt) {
+      const active = consumeFXGroup.userData.active;
+      if (!active) return;
+      active.life -= dt;
+      const p = 1 - Math.max(0, active.life) / 0.55;
+      active.suctionRing.scale.setScalar(1 + p * 8);
+      active.ripple.scale.setScalar(1 + p * 12);
+      active.suctionRing.material.opacity = 0.9 * (1 - p);
+      active.ripple.material.opacity = 0.35 * (1 - p);
+      active.suctionRing.position.y += dt * 4;
+
+      if (active.life <= 0) {
+        active.suctionRing.removeFromParent();
+        active.ripple.removeFromParent();
+        consumeFXGroup.userData.active = null;
+      }
+    }
+
     function tryConsumeLayerCore(state, dist) {
       if (state.consumed) return;
       const abs = absoluteScale();
@@ -612,7 +733,10 @@
         totalScore += gain * 20;
         size += gain / (1 + Math.log10(1 + size));
         pulse = 1;
-        setMilestone(`You consumed the ${state.layer.name} shell. Next layer exposed.`);
+        const index = layerStates.findIndex((s) => s === state);
+        const nextState = layerStates[Math.min(layerStates.length - 1, index + 1)];
+        triggerLayerConsumeFX(state, nextState);
+        setMilestone(`Consumed ${state.layer.name}. Pulling back to reveal ${nextState ? nextState.layer.name : 'the next scale'}.`);
       }
     }
 
@@ -646,6 +770,12 @@
           setMilestone(state.layer.message);
         }
       }
+
+      const tableCue = THREE.MathUtils.clamp((abs - 2.5) / 16, 0, 1);
+      const roomCue = THREE.MathUtils.clamp((abs - 9) / 28, 0, 1);
+      tableAnchorTop.material.opacity = 0.08 + tableCue * 0.2;
+      for (const leg of tableAnchorLegs) leg.material.opacity = 0.05 + tableCue * 0.18;
+      roomAnchor.material.opacity = 0.02 + roomCue * 0.1;
 
       const cosmic = THREE.MathUtils.clamp((Math.log10(1 + abs) - 2.2) / 2.4, 0, 1);
       scene.fog.density = THREE.MathUtils.lerp(0.013, 0.0018, cosmic);
@@ -802,9 +932,11 @@
       const input = new THREE.Vector3(player.dir.x, 0, player.dir.y);
       if (input.lengthSq() > 1) input.normalize();
 
+      const consumeBeat = transitionFX.timer > 0 ? transitionFX.timer / transitionFX.duration : 0;
+      const slowMo = consumeBeat > 0.58 ? 0.38 : 1;
       const speed = Math.max(1.8, 5.4 - Math.log10(1 + abs) * 0.85);
-      player.vel.lerp(input.multiplyScalar(speed), 0.1);
-      player.pos.addScaledVector(player.vel, dt * 3);
+      player.vel.lerp(input.multiplyScalar(speed * slowMo), 0.1);
+      player.pos.addScaledVector(player.vel, dt * 3 * slowMo);
 
       visualSize = THREE.MathUtils.lerp(visualSize, size, 0.085);
       const radius = 1.14 * visualSize;
@@ -823,13 +955,25 @@
       pulse = Math.max(0, pulse - dt * 1.2);
 
       const feel = THREE.MathUtils.clamp(Math.log10(1 + abs) / 4.4, 0, 1);
-      const camLift = 8 + Math.pow(abs, 0.36) * (2.6 + feel * 2.8);
-      const camDistance = 12 + Math.pow(abs, 0.37) * (3 + feel * 3.4);
-      const lookY = 0.12 + visualSize * 0.03;
-      camera.fov = THREE.MathUtils.lerp(60, 73, feel);
+      const camBeat = consumeBeat > 0 ? Math.sin((1 - consumeBeat) * Math.PI) : 0;
+      const camLift = 8 + Math.pow(abs, 0.36) * (2.6 + feel * 2.8) + camBeat * 8;
+      const camDistance = 12 + Math.pow(abs, 0.37) * (3 + feel * 3.4) + camBeat * 20;
+      const lookY = 0.12 + visualSize * 0.03 + camBeat * 0.4;
+      camera.fov = THREE.MathUtils.lerp(60, 73, feel) + camBeat * 3.2;
       camera.updateProjectionMatrix();
       camera.position.lerp(tmpVec.set(player.pos.x, camLift, player.pos.z + camDistance), 0.08);
       camera.lookAt(player.pos.x, lookY, player.pos.z);
+    }
+
+    function updateTransitionFX(dt) {
+      if (transitionFX.timer > 0) {
+        transitionFX.timer = Math.max(0, transitionFX.timer - dt);
+        const t = transitionFX.timer / transitionFX.duration;
+        const flash = Math.pow(t, 0.5) * 0.85;
+        if (transitionFlashEl) transitionFlashEl.style.opacity = String(flash);
+      } else if (transitionFlashEl) {
+        transitionFlashEl.style.opacity = '0';
+      }
     }
 
     function animate(now = 0) {
@@ -840,7 +984,9 @@
       updatePlayer(dt, now);
       maintainItems(dt);
       updateItems(dt);
+      updateConsumeFX(dt);
       updateLayerVisuals(now);
+      updateTransitionFX(dt);
       maybeAdvanceDimension();
       updateHUD();
 
