@@ -20,7 +20,13 @@
       throw new Error('Three.js did not load. Refresh the page and make sure internet access is available in the preview.');
     }
 
-    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false, powerPreference: 'high-performance' });
+    const renderer = new THREE.WebGLRenderer({
+      canvas,
+      antialias: true,
+      alpha: false,
+      powerPreference: 'high-performance',
+      logarithmicDepthBuffer: true,
+    });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     renderer.setSize(window.innerWidth, window.innerHeight);
     if ('outputColorSpace' in renderer) renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -31,7 +37,7 @@
     scene.background = new THREE.Color(0xe9f5ed);
     scene.fog = new THREE.FogExp2(0xe9f5ed, 0.014);
 
-    const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 18000);
+    const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.5, 7000);
     camera.position.set(0, 12, 18);
 
     const hemi = new THREE.HemisphereLight(0xb2ffda, 0x091018, 1.25);
@@ -50,24 +56,49 @@
     const glowLight = new THREE.PointLight(0x38ff83, 2.5, 80, 2);
     scene.add(glowLight);
 
+    function makeGroundGridTexture() {
+      const size = 512;
+      const majorEvery = 64;
+      const minorEvery = 16;
+      const cvs = document.createElement('canvas');
+      cvs.width = size;
+      cvs.height = size;
+      const ctx = cvs.getContext('2d');
+
+      ctx.fillStyle = '#e7f2ea';
+      ctx.fillRect(0, 0, size, size);
+
+      for (let i = 0; i <= size; i += minorEvery) {
+        const major = i % majorEvery === 0;
+        ctx.strokeStyle = major ? 'rgba(170, 204, 182, 0.45)' : 'rgba(196, 224, 206, 0.22)';
+        ctx.lineWidth = major ? 1.5 : 1;
+        ctx.beginPath(); ctx.moveTo(i + 0.5, 0); ctx.lineTo(i + 0.5, size); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(0, i + 0.5); ctx.lineTo(size, i + 0.5); ctx.stroke();
+      }
+
+      const tex = new THREE.CanvasTexture(cvs);
+      tex.wrapS = THREE.RepeatWrapping;
+      tex.wrapT = THREE.RepeatWrapping;
+      tex.repeat.set(240, 240);
+      tex.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy?.() || 1);
+      tex.needsUpdate = true;
+      return tex;
+    }
+
+    const groundGridTexture = makeGroundGridTexture();
     const groundMat = new THREE.MeshStandardMaterial({
       color: 0xdfeee3,
       roughness: 0.98,
       metalness: 0.01,
       emissive: 0xeff8f1,
       emissiveIntensity: 0.05,
+      map: groundGridTexture,
       dithering: true,
     });
     const ground = new THREE.Mesh(new THREE.PlaneGeometry(16000, 16000), groundMat);
     ground.rotation.x = -Math.PI / 2;
     ground.receiveShadow = true;
     scene.add(ground);
-
-    const grid = new THREE.GridHelper(16000, 520, 0xcfe6d6, 0xd9ebde);
-    grid.material.transparent = true;
-    grid.material.opacity = 0.16;
-    grid.material.depthWrite = false;
-    scene.add(grid);
 
     const starsGeo = new THREE.BufferGeometry();
     const starCount = 2200;
@@ -617,7 +648,7 @@
       camera.updateProjectionMatrix();
       camera.position.lerp(tmpVec.set(player.pos.x, camLift, player.pos.z + camDistance), 0.085);
       camera.lookAt(player.pos.x, camLookY, player.pos.z);
-      grid.position.set(player.pos.x, 0.02, player.pos.z);
+      // Grid baked into ground texture to avoid z-fighting shimmer.
 
       const cosmic = THREE.MathUtils.clamp((visualScale - 115) / 145, 0, 1);
       scene.fog.density = 0.012 - cosmic * 0.007;
